@@ -12,3 +12,4 @@ app/packages/seed/data/
 .DS_Store
 *.zip
 app/web/public/images/placeholder/
+infra/terraform/modules/**/.terraform.lock.hcl
