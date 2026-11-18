@@ -46,5 +46,5 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: eu-central-1
+          aws-region: eu-north-1
       - run: make deploy ENV=${{ inputs.env || 'dev' }} TF_APPLY_FLAGS=-auto-approve

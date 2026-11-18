@@ -9,7 +9,7 @@ mock_provider "aws" {
 
 variables {
   name       = "test"
-  api_domain = "example.execute-api.eu-central-1.amazonaws.com"
+  api_domain = "example.execute-api.eu-north-1.amazonaws.com"
 }
 
 run "ui_bucket_is_reachable_only_through_cloudfront" {

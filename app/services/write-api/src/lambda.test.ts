@@ -24,7 +24,7 @@ function apiGatewayEvent(method: string, rawPath: string, body?: string): APIGat
     requestContext: {
       accountId: '123456789012',
       apiId: 'api',
-      domainName: 'example.execute-api.eu-central-1.amazonaws.com',
+      domainName: 'example.execute-api.eu-north-1.amazonaws.com',
       domainPrefix: 'example',
       http: {
         method,

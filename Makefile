@@ -23,12 +23,12 @@ test:
 lint:
 	cd $(APP) && pnpm lint && pnpm typecheck
 
-# --- AWS (eu-central-1) --------------------------------------------------------------
+# --- AWS (eu-north-1) --------------------------------------------------------------
 # Every target below creates, changes or deletes billable resources. ENV=dev (default,
 # free-tier sized) or ENV=prod.
 
 ENV ?= dev
-AWS_REGION ?= eu-central-1
+AWS_REGION ?= eu-north-1
 # Locally the AWS CLI profile for the project account; GitHub Actions (CI=true) gets
 # credentials from its OIDC role instead, where a profile name would break the SDK.
 ifndef CI

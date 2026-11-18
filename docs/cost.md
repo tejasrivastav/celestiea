@@ -1,8 +1,10 @@
 # Cost
 
-**Estimates, not quotes.** On-demand list prices for eu-central-1 as I know them on
-2026-11-18, rounded. Check them in the AWS Pricing Calculator before relying on them;
-AWS changes prices and free-tier terms.
+**Estimates, not quotes.** Rounded on-demand list prices as I know them on 2026-11-18,
+taken for eu-central-1. The project now deploys to eu-north-1 (Stockholm), where these
+services are usually a few percent cheaper, so treat the figures as an upper bound. Check
+them in the AWS Pricing Calculator before relying on them; AWS changes prices and
+free-tier terms.
 
 > Tear down with `make destroy ENV=dev`. The dev kill switch stops the environment when
 > the $100 monthly budget is reached, but billing data lags by hours.
