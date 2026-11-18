@@ -11,3 +11,4 @@ coverage/
 app/packages/seed/data/
 .DS_Store
 *.zip
+app/web/public/images/placeholder/

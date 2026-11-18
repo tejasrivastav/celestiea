@@ -23,6 +23,7 @@
     "esbuild": "~0.25.12",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "pg": "^8.23.1",
     "prettier": "^3.10.1",
     "tsx": "^4.23.15",
