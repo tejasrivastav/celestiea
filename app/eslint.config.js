@@ -4,7 +4,9 @@ import prettier from 'eslint-config-prettier';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', 'eslint.config.js', 'web/public/**'] },
+  {
+    ignores: ['**/dist/**', '**/coverage/**', 'eslint.config.js', 'web/public/**', 'bench/*.k6.js'],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {

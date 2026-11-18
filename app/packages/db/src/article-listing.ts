@@ -104,11 +104,15 @@ interface TileRow extends Omit<ArticleTile, 'brand' | 'price' | 'image'> {
   imageHeight: number | null;
 }
 
-export async function listArticles(pool: pg.Pool, query: ArticleListQuery): Promise<ArticlePage> {
+// Exposed separately so scripts can EXPLAIN exactly the SQL the API runs.
+export async function buildArticleListSql(
+  pool: pg.Pool,
+  query: ArticleListQuery,
+): Promise<{ text: string; values: unknown[] } | null> {
   const params = new SqlParams();
   const conditions = await buildConditions(pool, query.filter, query.sort, params);
   if (conditions === null) {
-    return { nodes: [], hasNextPage: false, endCursor: null };
+    return null;
   }
 
   const { column, direction } = sortColumns[query.sort];
@@ -122,8 +126,8 @@ export async function listArticles(pool: pg.Pool, query: ArticleListQuery): Prom
 
   // The inner query picks one page using only the articles table, so the planner can
   // walk a listing index and stop after the limit. Joins run for that page only.
-  const { rows } = await pool.query<TileRow>(
-    `SELECT a.id,
+  return {
+    text: `SELECT a.id,
             a.article_sku AS sku,
             a.product_id AS "productId",
             p.name AS "productName",
@@ -165,8 +169,16 @@ export async function listArticles(pool: pg.Pool, query: ArticleListQuery): Prom
             AND s.availability <> 'out_of_stock'
        ) sizes ON true
       ORDER BY ${orderBy}`,
-    params.values,
-  );
+    values: params.values,
+  };
+}
+
+export async function listArticles(pool: pg.Pool, query: ArticleListQuery): Promise<ArticlePage> {
+  const sql = await buildArticleListSql(pool, query);
+  if (sql === null) {
+    return { nodes: [], hasNextPage: false, endCursor: null };
+  }
+  const { rows } = await pool.query<TileRow>(sql.text, sql.values);
 
   const pageRows = rows.slice(0, query.first);
   const last = pageRows.at(-1);
