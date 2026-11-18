@@ -1,0 +1,51 @@
+name: infra-plan
+
+on:
+  pull_request:
+    paths: ['infra/**', '.github/workflows/infra-plan.yml']
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.x
+      - uses: terraform-linters/setup-tflint@v4
+      - run: terraform fmt -check -recursive
+      - run: tflint --init && tflint --recursive --config "$PWD/.tflint.hcl"
+      - name: Module tests (mocked providers)
+        run: for module in database edge; do (cd modules/$module && terraform init -backend=false && terraform test); done
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: eu-central-1
+      - name: Plan
+        id: plan
+        working-directory: infra/terraform/envs/dev
+        # Placeholder artifacts: a plan only needs files that exist and tags that are strings.
+        run: |
+          touch /tmp/placeholder.zip
+          account=$(aws sts get-caller-identity --query Account --output text)
+          terraform init -input=false -backend-config="bucket=celestiea-tfstate-$account"
+          terraform validate
+          terraform plan -no-color -input=false -lock-timeout=60s \
+            -var read_api_image_tag=plan -var migrator_image_tag=plan \
+            -var write_api_zip_path=/tmp/placeholder.zip -var kill_switch_zip_path=/tmp/placeholder.zip \
+            -var alert_email=${{ vars.ALERT_EMAIL }} > plan.txt
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const plan = require('fs').readFileSync('infra/terraform/envs/dev/plan.txt', 'utf8');
+            const summary = plan.match(/Plan: .*|No changes\..*/)?.[0] ?? 'see the job log';
+            const body = `#### Terraform plan (dev): ${summary}\n<details><summary>Full plan</summary>\n\n\`\`\`\n${plan.slice(-60000)}\n\`\`\`\n</details>`;
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
