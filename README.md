@@ -60,7 +60,7 @@ aws secretsmanager get-secret-value --query SecretString --output text \
 ```
 
 **Tear down with `make destroy ENV=dev`.** Dev is sized for the free tier (about $1.30 a
-month on the legacy free tier, about $55 without it); prod is about $340 a month at idle
+month on the legacy free tier, about $55 without it); prod is about $365 a month at idle
 ([cost](docs/cost.md)). In dev a $100 budget triggers a kill switch that stops the
 environment; `make resume ENV=dev` brings it back.
 

@@ -25,7 +25,7 @@ A dev environment must run within the AWS free tier while prod shows the intende
 |          | prod                                                  | dev (free tier)                                                 |
 | -------- | ----------------------------------------------------- | --------------------------------------------------------------- |
 | Database | Aurora writer + reader, RDS Proxy (`database-aurora`) | one RDS db.t4g.micro, IAM auth from the Lambda (`database-rds`) |
-| Read API | Fargate arm64, 2 to 6 tasks                           | ECS on one t3.micro, host networking                            |
+| Read API | Fargate arm64, 2 to 8 tasks of 1 vCPU                 | ECS on one t3.micro, host networking                            |
 | Cache    | Valkey Serverless                                     | none                                                            |
 | Egress   | interface endpoints, no internet path                 | public subnet for the ECS host only                             |
 | Budget   | alerts                                                | alerts and kill switch (soft stop)                              |
@@ -36,5 +36,5 @@ The two database modules expose the same outputs, so the rest of the wiring is i
 
 Dev is not a faithful performance replica of prod, and its ECS host has a public IP
 (ingress is limited to the ALB). Dev deploys have a short gap because the single host
-can't run two tasks on port 3000. Prod costs about $340 a month at idle ([cost](../cost.md)) and is deployed
+can't run two tasks on port 3000. Prod costs about $365 a month at idle ([cost](../cost.md)) and is deployed
 only by hand.

@@ -39,9 +39,9 @@ variable "min_acu" {
 }
 
 variable "max_acu" {
-  description = "Maximum Aurora capacity units per instance."
+  description = "Maximum Aurora capacity units per instance; about 20 are needed at 1,000 origin requests per second."
   type        = number
-  default     = 4
+  default     = 24
 }
 
 

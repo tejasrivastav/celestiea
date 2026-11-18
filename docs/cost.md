@@ -28,18 +28,18 @@ applies until the credits run out.
 
 ## Prod
 
-| Item                                                     | Idle                   | Modest load (about 10 M requests/month, 50% CloudFront hit rate) |
-| -------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------- |
-| Aurora Serverless v2, writer + reader at 0.5 ACU minimum | $102                   | $200 (about 1 ACU average each)                                  |
-| RDS Proxy (billed per ACU, 8 ACU minimum)                | $105                   | $105                                                             |
-| Interface endpoints: 4 × 2 AZs                           | $70                    | $72                                                              |
-| Fargate arm64, 0.5 vCPU / 1 GB tasks                     | $23 (2 tasks)          | $35 (3 tasks average)                                            |
-| Internal ALB                                             | $20                    | $25                                                              |
-| ElastiCache Serverless Valkey (minimum storage)          | $8                     | $15                                                              |
-| API Gateway HTTP API                                     | $0                     | $6                                                               |
-| CloudFront (requests + 100 GB out)                       | $0                     | $21                                                              |
-| Secrets Manager, CloudWatch (dashboard, alarms, logs)    | $8                     | $12                                                              |
-| **Total**                                                | **about $340 / month** | **about $490 / month**                                           |
+| Item                                                              | Idle                   | Modest load (about 10 M requests/month, 50% CloudFront hit rate) |
+| ----------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------- |
+| Aurora Serverless v2, writer + reader at 0.5 ACU minimum (max 24) | $102                   | $200 (about 1 ACU average each)                                  |
+| RDS Proxy (billed per ACU, 8 ACU minimum)                         | $105                   | $105                                                             |
+| Interface endpoints: 4 × 2 AZs                                    | $70                    | $72                                                              |
+| Fargate arm64, 1 vCPU / 2 GB tasks                                | $46 (2 tasks)          | $46 (2 tasks)                                                    |
+| Internal ALB                                                      | $20                    | $25                                                              |
+| ElastiCache Serverless Valkey (minimum storage)                   | $8                     | $15                                                              |
+| API Gateway HTTP API                                              | $0                     | $6                                                               |
+| CloudFront (requests + 100 GB out)                                | $0                     | $21                                                              |
+| Secrets Manager, CloudWatch (dashboard, alarms, logs)             | $8                     | $12                                                              |
+| **Total**                                                         | **about $365 / month** | **about $500 / month**                                           |
 
 ## Main cost drivers and toggles
 

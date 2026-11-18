@@ -1,5 +1,6 @@
 import type pg from 'pg';
 import type { SizeSystem } from '@celestiea/domain';
+import { prepared } from './prepared';
 
 export interface CategoryRow {
   slug: string;
@@ -55,12 +56,14 @@ export async function listBrands(pool: pg.Pool): Promise<BrandRow[]> {
 // Products hang off leaf categories only, so a parent category is expanded to its leaves.
 export async function findCategoryLeafIds(pool: pg.Pool, slug: string): Promise<number[]> {
   const { rows } = await pool.query<{ id: number }>(
-    `SELECT leaf.id
+    prepared(
+      `SELECT leaf.id
        FROM categories parent
        JOIN categories leaf ON leaf.path <@ parent.path
       WHERE parent.slug = $1
         AND leaf.is_leaf`,
-    [slug],
+      [slug],
+    ),
   );
   return rows.map((row) => row.id);
 }

@@ -8,6 +8,7 @@ import {
   type ImageKind,
 } from '@celestiea/domain';
 import { findCategoryLeafIds } from './catalog-reference';
+import { prepared } from './prepared';
 import { SqlParams } from './sql-params';
 
 export interface ArticlePage {
@@ -178,7 +179,7 @@ export async function listArticles(pool: pg.Pool, query: ArticleListQuery): Prom
   if (sql === null) {
     return { nodes: [], hasNextPage: false, endCursor: null };
   }
-  const { rows } = await pool.query<TileRow>(sql.text, sql.values);
+  const { rows } = await pool.query<TileRow>(prepared(sql.text, sql.values));
 
   const pageRows = rows.slice(0, query.first);
   const last = pageRows.at(-1);
@@ -205,14 +206,16 @@ export async function countArticles(
     return { value: 0, isCapped: false };
   }
   const { rows } = await pool.query<{ count: number }>(
-    `SELECT count(*) AS count
+    prepared(
+      `SELECT count(*) AS count
        FROM (
          SELECT 1
            FROM articles a
           WHERE ${conditions.join('\n            AND ')}
           LIMIT ${params.add(cap + 1)}
        ) capped`,
-    params.values,
+      params.values,
+    ),
   );
   const count = rows[0]?.count ?? 0;
   return { value: Math.min(count, cap), isCapped: count > cap };

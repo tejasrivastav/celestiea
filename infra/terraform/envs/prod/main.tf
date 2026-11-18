@@ -29,7 +29,8 @@ data "aws_ecr_repository" "service" {
 }
 
 # The production shape: Aurora writer and reader with RDS Proxy, Valkey, Fargate across
-# two availability zones, and no internet path from the VPC.
+# two availability zones, and no internet path from the VPC. Limits are sized for about
+# 2,000 shopper requests per second with an 80% CloudFront hit rate (docs/benchmarks.md).
 module "network" {
   source = "../../modules/network"
   name   = local.name
@@ -48,10 +49,11 @@ module "database" {
 }
 
 module "cache" {
-  source            = "../../modules/cache"
-  name              = local.name
-  subnet_ids        = module.network.private_subnet_ids
-  security_group_id = module.network.security_group_ids["cache"]
+  source              = "../../modules/cache"
+  name                = local.name
+  subnet_ids          = module.network.private_subnet_ids
+  security_group_id   = module.network.security_group_ids["cache"]
+  max_ecpu_per_second = 10000
 }
 
 module "read_service" {
@@ -66,10 +68,10 @@ module "read_service" {
   database_name             = module.database.database_name
   database_secret_arn       = module.database.role_secret_arns["catalog_reader"]
   valkey_url                = module.cache.url
-  cpu                       = 512
-  memory                    = 1024
+  cpu                       = 1024
+  memory                    = 2048
   desired_count             = 2
-  max_count                 = 6
+  max_count                 = 8
 }
 
 module "migrator" {
@@ -106,6 +108,8 @@ module "api_gateway" {
   write_invoke_arn           = module.write_api.write_invoke_arn
   authorizer_invoke_arn      = module.write_api.authorizer_invoke_arn
   function_names             = module.write_api.function_names
+  throttling_rate_limit      = 1500
+  throttling_burst_limit     = 3000
 }
 
 module "edge" {
