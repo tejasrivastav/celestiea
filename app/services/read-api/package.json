@@ -10,5 +10,8 @@
     "graphql": "^16.15.0",
     "iovalkey": "~0.3.3",
     "mercurius": "^16.12.2"
+  },
+  "scripts": {
+    "build": "node ../../scripts/bundle.mjs dist src/main.ts"
   }
 }

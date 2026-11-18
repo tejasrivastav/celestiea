@@ -8,7 +8,10 @@ export default tseslint.config(
   ...tseslint.configs.recommendedTypeChecked,
   {
     languageOptions: {
-      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+      parserOptions: {
+        projectService: { allowDefaultProject: ['scripts/*.mjs'] },
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     rules: {
       'no-console': 'error',

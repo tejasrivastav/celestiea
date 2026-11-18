@@ -7,7 +7,10 @@ const databaseUrl = requireEnv('DATABASE_URL');
 const readerPassword = requireEnv('CATALOG_READER_PASSWORD');
 const writerPassword = requireEnv('CATALOG_WRITER_PASSWORD');
 
-const pool = createPool({ connectionString: databaseUrl });
+const pool = createPool({
+  connectionString: databaseUrl,
+  ssl: process.env.DATABASE_SSL === 'true',
+});
 const applied = await runMigrations(pool);
 await setRolePasswords(pool, { reader: readerPassword, writer: writerPassword });
 await pool.end();

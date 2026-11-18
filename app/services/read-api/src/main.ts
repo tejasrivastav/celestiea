@@ -3,7 +3,11 @@ import { buildApp } from './app';
 import { loadConfig } from './config';
 
 const config = loadConfig(process.env);
-const pool = createPool({ connectionString: config.databaseUrl, max: config.databasePoolSize });
+const pool = createPool({
+  connectionString: config.databaseUrl,
+  max: config.databasePoolSize,
+  ssl: config.databaseSsl,
+});
 const valkey = config.valkeyUrl === null ? null : createValkeyClient(config.valkeyUrl);
 
 const app = await buildApp({

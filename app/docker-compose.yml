@@ -1,3 +1,8 @@
+# Local credentials only. The services connect with the same least-privilege roles as in
+# AWS: catalog_reader for the read API, catalog_writer for the write API.
+x-reader-url: &reader-url postgres://catalog_reader:local-reader@postgres:5432/celestiea
+x-writer-url: &writer-url postgres://catalog_writer:local-writer@postgres:5432/celestiea
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -24,6 +29,56 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+
+  migrate:
+    build:
+      context: .
+      dockerfile: services/migrator/Dockerfile
+    environment:
+      DATABASE_URL: postgres://celestiea:celestiea@postgres:5432/celestiea
+      CATALOG_READER_PASSWORD: local-reader
+      CATALOG_WRITER_PASSWORD: local-writer
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  read-api:
+    build:
+      context: .
+      dockerfile: services/read-api/Dockerfile
+    environment:
+      DATABASE_URL: *reader-url
+      VALKEY_URL: redis://valkey:6379
+      ENABLE_GRAPHIQL: 'true'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+
+  write-api:
+    build:
+      context: .
+      dockerfile: services/write-api/Dockerfile
+    environment:
+      DATABASE_URL: *writer-url
+      VALKEY_URL: redis://valkey:6379
+      AUTH_TOKEN: ${AUTH_TOKEN:-local-dev-token}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      valkey:
+        condition: service_healthy
+
+  gateway:
+    image: caddy:2-alpine
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - read-api
+      - write-api
 
 volumes:
   postgres-data:

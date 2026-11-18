@@ -1,0 +1,16 @@
+# Mirrors the API Gateway routes in front of the services in AWS: GraphQL reads go to the
+# read API, every other /v1 route to the write Lambda (here its local adapter).
+:8080 {
+	request_header X-Request-Id {http.request.uuid}
+
+	@reads path /v1/graphql /v1/graphiql /v1/graphiql/*
+	handle @reads {
+		reverse_proxy read-api:3000
+	}
+	handle /v1/* {
+		reverse_proxy write-api:3001
+	}
+	handle {
+		reverse_proxy web:5173
+	}
+}
