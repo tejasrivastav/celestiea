@@ -10,7 +10,9 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "pnpm -r --parallel exec tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed": "tsx packages/db/src/seed/cli.ts",
+    "migrate": "tsx services/migrator/src/main.ts"
   },
   "devDependencies": {
     "@celestiea/db": "workspace:*",

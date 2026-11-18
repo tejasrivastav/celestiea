@@ -5,9 +5,11 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@celestiea/domain": "workspace:*",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "pg-copy-streams": "^6.0.6"
   },
   "devDependencies": {
-    "@types/pg": "^8.23.1"
+    "@types/pg": "^8.23.1",
+    "@types/pg-copy-streams": "^1.2.5"
   }
 }
