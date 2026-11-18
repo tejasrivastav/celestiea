@@ -1,0 +1,13 @@
+{
+  "name": "@celestiea/db",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@celestiea/domain": "workspace:*",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
+  }
+}
