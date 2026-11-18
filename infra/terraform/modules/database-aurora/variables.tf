@@ -19,9 +19,9 @@ variable "proxy_security_group_id" {
 }
 
 variable "engine_version" {
-  description = "Aurora PostgreSQL engine version."
+  description = "Aurora PostgreSQL engine version; check availability per region and instance class."
   type        = string
-  default     = "16.6"
+  default     = "16.15"
 }
 
 variable "database_name" {

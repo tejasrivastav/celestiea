@@ -14,9 +14,9 @@ variable "security_group_id" {
 }
 
 variable "engine_version" {
-  description = "PostgreSQL engine version."
+  description = "PostgreSQL major version; RDS picks the current minor and upgrades it."
   type        = string
-  default     = "16.6"
+  default     = "16"
 }
 
 variable "instance_class" {

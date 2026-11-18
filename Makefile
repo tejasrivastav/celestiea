@@ -29,19 +29,21 @@ lint:
 
 ENV ?= dev
 AWS_REGION ?= eu-north-1
-# AWS CLI profile for the project account.
+# AWS CLI profile for the project account. Recipes see it through export; $(shell) calls
+# don't in the GNU Make 3.81 that ships with macOS, so those set it explicitly.
 export AWS_PROFILE ?= celestiea
+WITH_PROFILE := AWS_PROFILE=$(AWS_PROFILE)
 TF_BOOTSTRAP := infra/terraform/bootstrap
 TF_ENV := infra/terraform/envs/$(ENV)
 GIT_SHA := $(shell git rev-parse --short=12 HEAD)
-ACCOUNT_ID = $(shell aws sts get-caller-identity --query Account --output text)
+ACCOUNT_ID = $(shell $(WITH_PROFILE) aws sts get-caller-identity --query Account --output text)
 REGISTRY = $(ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 TF_VARS = -var read_api_image_tag=$(GIT_SHA) -var migrator_image_tag=$(GIT_SHA) \
 	-var write_api_zip_path=$(CURDIR)/app/services/write-api/write-api.zip \
 	-var alert_email=$(ALERT_EMAIL) \
 	$(if $(filter dev,$(ENV)),-var kill_switch_zip_path=$(CURDIR)/app/services/kill-switch/kill-switch.zip)
-tf_output = $(shell terraform -chdir=$(TF_ENV) output -raw $(1))
-tf_output_json = $(shell terraform -chdir=$(TF_ENV) output -json $(1) | jq -r '$(2)')
+tf_output = $(shell $(WITH_PROFILE) terraform -chdir=$(TF_ENV) output -raw $(1))
+tf_output_json = $(shell $(WITH_PROFILE) terraform -chdir=$(TF_ENV) output -json $(1) | jq -r '$(2)')
 
 .PHONY: bootstrap tf-init artifacts plan deploy deploy-ui seed smoke resume destroy
 
@@ -58,8 +60,10 @@ artifacts:
 	cd $(APP) && pnpm install --frozen-lockfile
 	cd $(APP) && pnpm --filter @celestiea/write-api package && pnpm --filter @celestiea/kill-switch package
 	aws ecr get-login-password --region $(AWS_REGION) | docker login --username AWS --password-stdin $(REGISTRY)
+	# Docker's default builder can't push multi-platform images; a container builder can.
+	docker buildx inspect celestiea >/dev/null 2>&1 || docker buildx create --name celestiea --driver docker-container >/dev/null
 	for service in read-api migrator; do \
-		docker buildx build --platform linux/arm64,linux/amd64 --provenance=false \
+		docker buildx build --builder celestiea --platform linux/arm64,linux/amd64 --provenance=false \
 			-f $(APP)/services/$$service/Dockerfile -t $(REGISTRY)/celestiea/$$service:$(GIT_SHA) --push $(APP) || exit 1; \
 	done
 

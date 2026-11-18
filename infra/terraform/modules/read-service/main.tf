@@ -61,6 +61,12 @@ resource "aws_launch_template" "host" {
   metadata_options {
     http_tokens = "required"
   }
+
+  # t3 defaults to unlimited credits, which bills CPU bursts above the baseline. Standard
+  # mode throttles to the baseline instead, so a load spike can't create charges.
+  credit_specification {
+    cpu_credits = "standard"
+  }
 }
 
 resource "aws_autoscaling_group" "host" {
