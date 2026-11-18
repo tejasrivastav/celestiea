@@ -110,7 +110,7 @@ flowchart LR
 
     AG -- "GET/POST /v1/graphql" --> VL
     AG -- "other /v1 routes, invoke" --> W
-    S3GW --> LAYERS[(ECR image layers in S3)]
+    S3GW --> LAYERS[(Container image layers, ECR storage in S3)]
 ```
 
 Two AZs, private subnets only, no internet gateway or NAT. ECR, CloudWatch Logs and
