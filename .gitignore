@@ -10,3 +10,4 @@ coverage/
 *.tfstate.*
 app/packages/seed/data/
 .DS_Store
+*.zip

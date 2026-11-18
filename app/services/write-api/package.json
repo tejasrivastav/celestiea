@@ -1,0 +1,23 @@
+{
+  "name": "@celestiea/write-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/lambda.ts src/authorizer.ts --bundle --platform=node --target=node22 --format=esm --minify --sourcemap --outdir=dist --out-extension:.js=.mjs --external:@aws-sdk/client-secrets-manager --external:pg-native --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" && cd dist && rm -f ../write-api.zip && zip -q ../write-api.zip *.mjs *.map"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1172.0",
+    "@aws-sdk/rds-signer": "^3.1172.0",
+    "@celestiea/db": "workspace:*",
+    "@celestiea/domain": "workspace:*",
+    "fastify": "^5.12.8",
+    "iovalkey": "~0.3.3",
+    "pg": "^8.23.1",
+    "pino": "^9.14.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.164",
+    "@types/pg": "^8.23.1",
+    "esbuild": "~0.25.12"
+  }
+}
