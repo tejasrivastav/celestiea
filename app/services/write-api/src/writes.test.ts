@@ -289,6 +289,22 @@ describe('write API', () => {
     );
   });
 
+  it('evicts a deleted product from Valkey so reads stop serving it', async () => {
+    const product = await createProduct();
+    const query = `query ($id: ID!) { product(id: $id) { name } }`;
+    const readProduct = () =>
+      readApi.inject({
+        method: 'GET',
+        url: '/v1/graphql',
+        query: { query, variables: JSON.stringify({ id: product.id }) },
+      });
+    await readProduct();
+
+    await send('DELETE', `/v1/products/${product.id}`);
+
+    expect((await readProduct()).json().data.product).toBeNull();
+  });
+
   describe.each([
     ['with Valkey', () => ({ write: writeApi, read: readApi })],
     ['without Valkey', () => ({ write: writeApiWithoutCache, read: readApiWithoutCache })],
