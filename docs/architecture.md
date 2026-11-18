@@ -55,7 +55,7 @@ sequenceDiagram
     AU-->>AG: isAuthorized
     AG->>W: API Gateway v2 event
     W->>P: IAM auth token
-    P->>PG: BEGIN; lock product; check version; update; copy fields to articles; COMMIT
+    P->>PG: one transaction: lock product, check version, update, copy fields to articles
     W->>V: SET product:v1:42 (fresh view)
     W-->>A: 200 + ETag "4" + updated product
 ```
