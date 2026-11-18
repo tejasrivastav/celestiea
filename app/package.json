@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "typecheck": "pnpm -r --parallel exec tsc --noEmit",
     "test": "vitest run",
-    "seed": "tsx packages/db/src/seed/cli.ts",
+    "seed": "tsx packages/seed/src/cli.ts",
     "migrate": "tsx services/migrator/src/main.ts"
   },
   "devDependencies": {

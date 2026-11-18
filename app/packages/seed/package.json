@@ -1,0 +1,15 @@
+{
+  "name": "@celestiea/seed",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@celestiea/db": "workspace:*",
+    "@celestiea/domain": "workspace:*",
+    "pg": "^8.23.1",
+    "pg-copy-streams": "^6.0.6"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "@types/pg-copy-streams": "^1.2.5"
+  }
+}

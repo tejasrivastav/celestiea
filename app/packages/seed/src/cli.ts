@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
-import { createPool } from '../pool';
+import { fileURLToPath } from 'node:url';
+import { createPool } from '@celestiea/db';
 import { generateSeed, type SeedScale } from './generate';
 import { loadSeed } from './load';
 
@@ -15,7 +16,7 @@ if (values.scale !== 'small' && values.scale !== 'full') {
   throw new Error(`--scale must be "small" or "full", got "${values.scale}"`);
 }
 const scale: SeedScale = values.scale;
-const outDir = values.out ?? `seed-data/${scale}`;
+const outDir = values.out ?? fileURLToPath(new URL(`../data/${scale}/`, import.meta.url));
 
 const generationStarted = performance.now();
 const counts = await generateSeed(outDir, scale);

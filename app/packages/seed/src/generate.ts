@@ -6,18 +6,11 @@ import type {
   SizeAvailability,
   TargetGroup,
 } from '@celestiea/domain';
-import {
-  brandNames,
-  categoryTree,
-  colorNames,
-  colorWeights,
-  productKinds,
-  sizeCharts,
-  type CategoryNode,
-  type LeafDefinition,
-  type ProductKind,
-  type SizeChartKey,
-} from './catalog-data';
+import { brandNames } from './catalog/brands';
+import { categoryTree, type CategoryNode, type LeafDefinition } from './catalog/categories';
+import { colorNames, colorWeights } from './catalog/colors';
+import { productKinds, type ProductKind } from './catalog/product-kinds';
+import { sizeCharts, type SizeChartKey } from './catalog/size-charts';
 import { createCsvWriter } from './csv';
 import { createRandom, type Random } from './random';
 import { seedFileName, type SeedTableName } from './tables';

@@ -8,5 +8,5 @@ coverage/
 .terraform/
 *.tfstate
 *.tfstate.*
-seed-data/
+app/packages/seed/data/
 .DS_Store

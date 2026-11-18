@@ -47,6 +47,24 @@ importers:
       pg:
         specifier: ^8.23.1
         version: 8.23.1
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+
+  packages/domain: {}
+
+  packages/seed:
+    dependencies:
+      '@celestiea/db':
+        specifier: workspace:*
+        version: link:../db
+      '@celestiea/domain':
+        specifier: workspace:*
+        version: link:../domain
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
       pg-copy-streams:
         specifier: ^6.0.6
         version: 6.0.6
@@ -57,8 +75,6 @@ importers:
       '@types/pg-copy-streams':
         specifier: ^1.2.5
         version: 1.2.5
-
-  packages/domain: {}
 
   services/migrator:
     dependencies:
