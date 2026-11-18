@@ -1,7 +1,7 @@
 import type { IResolvers, MercuriusContext } from 'mercurius';
 import {
-  DomainError,
   parseArticleListQuery,
+  parseProductId,
   toPublicProductView,
   type ArticleListInput,
   type ArticleListQuery,
@@ -44,6 +44,9 @@ export const resolvers: IResolvers = {
     brands(_root: unknown, _args: unknown, context: MercuriusContext) {
       return context.brands();
     },
+    sizeCharts(_root: unknown, _args: unknown, context: MercuriusContext) {
+      return context.sizeCharts();
+    },
   },
   // Resolved only when a client selects it, so plain listing requests skip the count.
   ArticleConnection: {
@@ -80,14 +83,4 @@ async function loadPublicProduct(
     });
   }
   return toPublicProductView(view);
-}
-
-function parseProductId(id: string): number {
-  const productId = Number(id);
-  if (!Number.isSafeInteger(productId) || productId < 1) {
-    throw new DomainError('validation_failed', `"${id}" is not a valid product id.`, [
-      { path: 'id', message: 'Must be a positive integer' },
-    ]);
-  }
-  return productId;
 }

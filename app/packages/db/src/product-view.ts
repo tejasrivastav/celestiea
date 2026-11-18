@@ -116,3 +116,18 @@ export async function findProductIdByArticleSku(
   );
   return rows[0]?.productId ?? null;
 }
+
+// Admin lookup: matches a model or article SKU and includes drafts.
+export async function findProductIdBySku(
+  db: pg.ClientBase | pg.Pool,
+  sku: string,
+): Promise<number | null> {
+  const { rows } = await db.query<{ productId: number }>(
+    `SELECT id AS "productId" FROM products WHERE model_sku = $1 AND deleted_at IS NULL
+     UNION ALL
+     SELECT product_id FROM articles WHERE article_sku = $1 AND deleted_at IS NULL
+     LIMIT 1`,
+    [sku],
+  );
+  return rows[0]?.productId ?? null;
+}

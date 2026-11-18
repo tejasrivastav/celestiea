@@ -1,19 +1,10 @@
-import { Redis } from 'iovalkey';
-import { createPool } from '@celestiea/db';
+import { createPool, createValkeyClient } from '@celestiea/db';
 import { buildApp } from './app';
 import { loadConfig } from './config';
 
 const config = loadConfig(process.env);
 const pool = createPool({ connectionString: config.databaseUrl, max: config.databasePoolSize });
-// Fail fast when Valkey is down: a slow cache must not slow reads that Postgres can serve.
-const valkey =
-  config.valkeyUrl === null
-    ? null
-    : new Redis(config.valkeyUrl, {
-        commandTimeout: 100,
-        maxRetriesPerRequest: 1,
-        enableOfflineQueue: false,
-      });
+const valkey = config.valkeyUrl === null ? null : createValkeyClient(config.valkeyUrl);
 
 const app = await buildApp({
   pool,

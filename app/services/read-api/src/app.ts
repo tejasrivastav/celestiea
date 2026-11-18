@@ -5,7 +5,14 @@ import mercurius from 'mercurius';
 import type pg from 'pg';
 import type { Redis } from 'iovalkey';
 import { toProblem, type Problem } from '@celestiea/domain';
-import { listBrands, listCategories, type BrandRow, type CategoryRow } from '@celestiea/db';
+import {
+  listBrands,
+  listCategories,
+  listSizeCharts,
+  type BrandRow,
+  type CategoryRow,
+  type SizeChartRow,
+} from '@celestiea/db';
 import { cacheControlFor } from './cache-control';
 import { memoizeFor } from './memoize';
 import { resolvers } from './resolvers';
@@ -17,6 +24,7 @@ declare module 'mercurius' {
     valkey: Redis | null;
     categories: () => Promise<CategoryRow[]>;
     brands: () => Promise<BrandRow[]>;
+    sizeCharts: () => Promise<SizeChartRow[]>;
   }
 }
 
@@ -41,10 +49,11 @@ export async function buildApp({
   });
   await app.register(etag);
 
-  // Categories and brands change only with deploys or rare admin edits and are requested
+  // Categories, brands and size charts change only with deploys or rare admin edits and are requested
   // on every page, so each task keeps them in memory instead of in Valkey.
   const categories = memoizeFor(referenceDataTtlMs, () => listCategories(pool));
   const brands = memoizeFor(referenceDataTtlMs, () => listBrands(pool));
+  const sizeCharts = memoizeFor(referenceDataTtlMs, () => listSizeCharts(pool));
 
   await app.register(
     async (v1) => {
@@ -54,7 +63,7 @@ export async function buildApp({
         path: '/graphql',
         graphiql: enableGraphiql,
         queryDepth: 8,
-        context: (_request, reply) => ({ pool, valkey, categories, brands, reply }),
+        context: (_request, reply) => ({ pool, valkey, categories, brands, sizeCharts, reply }),
         errorFormatter: (execution, context) => {
           const formatted = mercurius.defaultErrorFormatter(execution, context);
           context.reply.header('cache-control', 'no-store');

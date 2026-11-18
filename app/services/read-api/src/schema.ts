@@ -12,6 +12,7 @@ export const schema = /* GraphQL */ `
     productByArticleSku(sku: String!): Product
     categories: [Category!]!
     brands: [Brand!]!
+    sizeCharts: [SizeChart!]!
   }
 
   input ArticleFilter {
@@ -193,6 +194,14 @@ export const schema = /* GraphQL */ `
     slug: String!
     name: String!
     path: String!
+  }
+
+  type SizeChart {
+    id: ID!
+    name: String!
+    system: SizeSystem!
+    "In size order."
+    sizes: [String!]!
   }
 
   type Category {

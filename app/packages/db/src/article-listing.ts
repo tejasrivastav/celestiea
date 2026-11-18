@@ -8,6 +8,7 @@ import {
   type ImageKind,
 } from '@celestiea/domain';
 import { findCategoryLeafIds } from './catalog-reference';
+import { SqlParams } from './sql-params';
 
 export interface ArticlePage {
   nodes: ArticleTile[];
@@ -30,15 +31,6 @@ const sortColumns: Record<ArticleSort, { column: string; direction: 'ASC' | 'DES
 
 // Must stay textually identical to the predicate of the partial listing indexes.
 const listedPredicate = `a.deleted_at IS NULL AND a.status = 'active' AND a.product_status = 'active'`;
-
-class SqlParams {
-  readonly values: unknown[] = [];
-
-  add(value: unknown): string {
-    this.values.push(value);
-    return `$${this.values.length}`;
-  }
-}
 
 async function buildConditions(
   pool: pg.Pool,

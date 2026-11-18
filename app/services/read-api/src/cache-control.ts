@@ -9,6 +9,7 @@ const maxAgeByRootField: Record<string, number> = {
   productByArticleSku: 60,
   categories: 3600,
   brands: 3600,
+  sizeCharts: 3600,
 };
 
 export function cacheControlFor(document: DocumentNode): string {

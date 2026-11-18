@@ -1,4 +1,5 @@
 import type pg from 'pg';
+import type { SizeSystem } from '@celestiea/domain';
 
 export interface CategoryRow {
   slug: string;
@@ -13,6 +14,20 @@ export interface BrandRow {
   slug: string;
   name: string;
   isPremium: boolean;
+}
+
+export interface SizeChartRow {
+  id: number;
+  name: string;
+  system: SizeSystem;
+  sizes: string[];
+}
+
+export async function listSizeCharts(pool: pg.Pool): Promise<SizeChartRow[]> {
+  const { rows } = await pool.query<SizeChartRow>(
+    `SELECT id, name, system, sizes FROM size_charts ORDER BY id`,
+  );
+  return rows;
 }
 
 export async function listCategories(pool: pg.Pool): Promise<CategoryRow[]> {

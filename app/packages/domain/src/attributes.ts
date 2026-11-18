@@ -25,3 +25,14 @@ export function attributesFromStorage(stored: Record<string, unknown>): ProductA
   }
   return attributes;
 }
+
+export function attributesToStorage(attributes: ProductAttributes): Record<string, unknown> {
+  const stored: Record<string, unknown> = {};
+  for (const [key, storageKey] of Object.entries(storageKeys)) {
+    const value = attributes[key as keyof ProductAttributes];
+    if (value !== undefined) {
+      stored[storageKey] = value;
+    }
+  }
+  return stored;
+}
