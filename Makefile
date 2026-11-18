@@ -63,7 +63,7 @@ artifacts:
 	# Docker's default builder can't push multi-platform images; a container builder can.
 	docker buildx inspect celestiea >/dev/null 2>&1 || docker buildx create --name celestiea --driver docker-container >/dev/null
 	for service in read-api migrator; do \
-		docker buildx build --builder celestiea --platform linux/arm64,linux/amd64 --provenance=false \
+		docker buildx build --builder celestiea --platform linux/arm64,linux/amd64 \
 			-f $(APP)/services/$$service/Dockerfile -t $(REGISTRY)/celestiea/$$service:$(GIT_SHA) --push $(APP) || exit 1; \
 	done
 
