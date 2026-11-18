@@ -29,6 +29,11 @@ lint:
 
 ENV ?= dev
 AWS_REGION ?= eu-central-1
+# Locally the AWS CLI profile for the project account; GitHub Actions (CI=true) gets
+# credentials from its OIDC role instead, where a profile name would break the SDK.
+ifndef CI
+export AWS_PROFILE ?= celestiea
+endif
 TF_BOOTSTRAP := infra/terraform/bootstrap
 TF_ENV := infra/terraform/envs/$(ENV)
 GIT_SHA := $(shell git rev-parse --short=12 HEAD)
