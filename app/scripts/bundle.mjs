@@ -15,8 +15,9 @@ await build({
   minify: true,
   sourcemap: true,
   // pg-native is an optional pg backend we don't use. The Lambda Node.js runtime ships
-  // the Secrets Manager client, so the authorizer bundle stays tiny.
-  external: ['pg-native', '@aws-sdk/client-secrets-manager'],
+  // the AWS SDK clients, so Lambda bundles leave them out; container images that need a
+  // client must list it as a dependency (none currently do).
+  external: ['pg-native', '@aws-sdk/client-*'],
   // CommonJS dependencies inside the ESM bundle still call require() and read __dirname.
   banner: {
     js: [

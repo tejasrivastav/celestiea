@@ -6,7 +6,43 @@ import type pg from 'pg';
 import { from as copyFrom } from 'pg-copy-streams';
 import { seedFileName, seedTables } from './tables';
 
-export async function loadSeed(pool: pg.Pool, dir: string): Promise<void> {
+type SeedTable = (typeof seedTables)[number];
+export type CopyTable = (client: pg.ClientBase, table: SeedTable) => Promise<void>;
+
+// Locally: stream each gzipped CSV from disk into COPY ... FROM STDIN.
+export function copyFromDirectory(dir: string): CopyTable {
+  return async (client, table) => {
+    const copy = client.query(
+      copyFrom(`COPY ${table.name} (${table.columns.join(', ')}) FROM STDIN WITH (FORMAT csv)`),
+    );
+    await pipeline(createReadStream(join(dir, seedFileName(table.name))), createGunzip(), copy);
+  };
+}
+
+// In AWS: Aurora reads the same files from S3 itself through the aws_s3 extension, so the
+// data never passes through the migrator task. Objects are uploaded with
+// Content-Encoding: gzip, which the extension decompresses.
+export function importFromS3(location: {
+  bucket: string;
+  prefix: string;
+  region: string;
+}): CopyTable {
+  return async (client, table) => {
+    await client.query(
+      `SELECT aws_s3.table_import_from_s3(
+                $1, $2, '(FORMAT csv)', aws_commons.create_s3_uri($3, $4, $5))`,
+      [
+        table.name,
+        table.columns.join(','),
+        location.bucket,
+        `${location.prefix}${seedFileName(table.name)}`,
+        location.region,
+      ],
+    );
+  };
+}
+
+export async function loadSeed(pool: pg.Pool, copyTable: CopyTable): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -16,10 +52,7 @@ export async function loadSeed(pool: pg.Pool, dir: string): Promise<void> {
     const foreignKeyDefinitions = await dropForeignKeys(client);
     const indexDefinitions = await dropSecondaryIndexes(client);
     for (const table of seedTables) {
-      const copy = client.query(
-        copyFrom(`COPY ${table.name} (${table.columns.join(', ')}) FROM STDIN WITH (FORMAT csv)`),
-      );
-      await pipeline(createReadStream(join(dir, seedFileName(table.name))), createGunzip(), copy);
+      await copyTable(client, table);
     }
     for (const definition of [...indexDefinitions, ...foreignKeyDefinitions]) {
       await client.query(definition);

@@ -1,0 +1,17 @@
+{
+  "name": "@celestiea/kill-switch",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/bundle.mjs dist src/handler.ts",
+    "package": "pnpm build && cd dist && rm -f ../kill-switch.zip && zip -q ../kill-switch.zip handler.mjs*"
+  },
+  "dependencies": {
+    "@aws-sdk/client-apigatewayv2": "^3.1172.0",
+    "@aws-sdk/client-application-auto-scaling": "^3.1172.0",
+    "@aws-sdk/client-ecs": "^3.1172.0",
+    "@aws-sdk/client-lambda": "^3.1172.0",
+    "@aws-sdk/client-rds": "^3.1172.0",
+    "pino": "^9.14.0"
+  }
+}

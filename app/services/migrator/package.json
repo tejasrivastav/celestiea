@@ -4,6 +4,7 @@
   "type": "module",
   "dependencies": {
     "@celestiea/db": "workspace:*",
+    "@celestiea/seed": "workspace:*",
     "pino": "^9.14.0"
   },
   "scripts": {

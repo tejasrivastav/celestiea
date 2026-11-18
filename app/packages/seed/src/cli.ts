@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { createPool } from '@celestiea/db';
 import { generateSeed, type SeedScale } from './generate';
-import { loadSeed } from './load';
+import { copyFromDirectory, loadSeed } from './load';
 
 const { values } = parseArgs({
   options: {
@@ -32,7 +32,7 @@ if (!values['generate-only']) {
   }
   const pool = createPool({ connectionString: databaseUrl });
   const loadStarted = performance.now();
-  await loadSeed(pool, outDir);
+  await loadSeed(pool, copyFromDirectory(outDir));
   await pool.end();
   process.stdout.write(`Loaded in ${((performance.now() - loadStarted) / 1000).toFixed(1)}s\n`);
 }

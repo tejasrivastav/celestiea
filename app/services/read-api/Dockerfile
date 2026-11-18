@@ -11,6 +11,7 @@ COPY packages/seed/package.json packages/seed/
 COPY services/read-api/package.json services/read-api/
 COPY services/write-api/package.json services/write-api/
 COPY services/migrator/package.json services/migrator/
+COPY services/kill-switch/package.json services/kill-switch/
 RUN pnpm install --frozen-lockfile
 COPY scripts scripts
 COPY packages packages

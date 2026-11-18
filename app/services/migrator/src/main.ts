@@ -1,20 +1,49 @@
+import { parseArgs } from 'node:util';
 import { pino } from 'pino';
 import { createPool, runMigrations, setRolePasswords } from '@celestiea/db';
+import { importFromS3, loadSeed } from '@celestiea/seed';
 
+// One image, two one-off jobs run as ECS tasks: `migrate` (every deploy) and
+// `import-seed` (on demand). Connection settings come from DATABASE_URL locally and from
+// the standard PG* variables in AWS, where ECS injects PGPASSWORD from Secrets Manager.
 const logger = pino();
-
-const databaseUrl = requireEnv('DATABASE_URL');
-const readerPassword = requireEnv('CATALOG_READER_PASSWORD');
-const writerPassword = requireEnv('CATALOG_WRITER_PASSWORD');
+const { positionals, values } = parseArgs({
+  allowPositionals: true,
+  options: { bucket: { type: 'string' }, prefix: { type: 'string', default: 'seed/full/' } },
+});
+const command = positionals[0] ?? 'migrate';
 
 const pool = createPool({
-  connectionString: databaseUrl,
+  connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_SSL === 'true',
 });
-const applied = await runMigrations(pool);
-await setRolePasswords(pool, { reader: readerPassword, writer: writerPassword });
+
+if (command === 'migrate') {
+  const applied = await runMigrations(pool);
+  await setRolePasswords(pool, {
+    reader: requireEnv('CATALOG_READER_PASSWORD'),
+    writer: requireEnv('CATALOG_WRITER_PASSWORD'),
+  });
+  logger.info({ applied }, 'migrations complete');
+} else if (command === 'import-seed') {
+  if (values.bucket === undefined) {
+    throw new Error('import-seed needs --bucket');
+  }
+  await pool.query('CREATE EXTENSION IF NOT EXISTS aws_s3 CASCADE');
+  const startedAt = performance.now();
+  await loadSeed(
+    pool,
+    importFromS3({
+      bucket: values.bucket,
+      prefix: values.prefix,
+      region: requireEnv('AWS_REGION'),
+    }),
+  );
+  logger.info({ seconds: Math.round((performance.now() - startedAt) / 1000) }, 'seed imported');
+} else {
+  throw new Error(`Unknown command "${command}"; expected migrate or import-seed`);
+}
 await pool.end();
-logger.info({ applied }, 'migrations complete');
 
 function requireEnv(name: string): string {
   const value = process.env[name];
