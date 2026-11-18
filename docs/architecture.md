@@ -81,6 +81,39 @@ flowchart LR
 
 ## Network (prod)
 
+```mermaid
+flowchart LR
+    U((Shoppers)) --> CF[CloudFront]
+    CF --> UI[(S3 UI bucket)]
+    CF --> AG[API Gateway HTTP API]
+    AG -- "invoke" --> AU[Authorizer Lambda]
+    AU --> SMP[Secrets Manager]
+
+    subgraph VPC["VPC 10.40.0.0/16: private subnets in 2 AZs, no internet gateway, no NAT"]
+        VL[VPC link] -- "80" --> ALB[Internal ALB]
+        ALB -- "3000" --> R[Read API tasks]
+        R -- "5432" --> DB[(Aurora writer + reader)]
+        MG[Migrator task] -- "5432" --> DB
+        W[Write Lambda] -- "5432, IAM auth" --> P[RDS Proxy]
+        P -- "5432" --> DB
+        R -- "6379" --> V[(Valkey)]
+        W -- "6379" --> V
+        subgraph EP["VPC endpoints"]
+            ECR[ECR api + dkr]
+            LOGS[CloudWatch Logs]
+            SM[Secrets Manager]
+            S3GW[S3 gateway]
+        end
+        R -. "443" .-> EP
+        MG -. "443" .-> EP
+    end
+
+    AG -- "GET/POST /v1/graphql" --> VL
+    AG -- "other /v1 routes, invoke" --> W
+    S3GW --> SEED[(S3 seed bucket and ECR layers)]
+    DB -. "aws_s3 import" .-> S3GW
+```
+
 Two AZs, private subnets only, no internet gateway or NAT. ECR, CloudWatch Logs and
 Secrets Manager are reached through interface endpoints, S3 through a gateway endpoint.
 The ALB is internal and reachable only from the API Gateway VPC link. Security group rules
