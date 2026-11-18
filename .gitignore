@@ -1,0 +1,12 @@
+claude-code-prompt.md
+node_modules/
+dist/
+coverage/
+.env
+*.tfvars
+!*.tfvars.example
+.terraform/
+*.tfstate
+*.tfstate.*
+seed-data/
+.DS_Store
