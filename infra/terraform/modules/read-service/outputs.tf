@@ -22,3 +22,18 @@ output "service_arn" {
   description = "ECS service ARN of the read API."
   value       = aws_ecs_service.read_api.id
 }
+
+output "launch_type" {
+  description = "ECS launch type for one-off tasks in this cluster."
+  value       = local.on_ec2 ? "EC2" : "FARGATE"
+}
+
+output "network_mode" {
+  description = "Task network mode (awsvpc or host)."
+  value       = local.network_mode
+}
+
+output "host_autoscaling_group" {
+  description = "Auto Scaling group of the EC2 host, or null on Fargate."
+  value       = local.on_ec2 ? aws_autoscaling_group.host[0].name : null
+}

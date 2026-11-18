@@ -28,36 +28,29 @@ data "aws_ecr_repository" "service" {
   name     = "celestiea/${each.key}"
 }
 
+# Free-tier sized: one db.t4g.micro without replica or proxy, one t3.micro ECS host, no
+# cache and no interface endpoints. Same modules and application as prod; the
+# differences and their costs are listed in docs/cost.md.
 module "network" {
-  source = "../../modules/network"
-  name   = local.name
+  source                     = "../../modules/network"
+  name                       = local.name
+  enable_interface_endpoints = false
+  enable_public_subnets      = true
+  database_proxy             = false
 }
 
 module "database" {
-  source                  = "../../modules/database"
-  name                    = local.name
-  subnet_ids              = module.network.private_subnet_ids
-  security_group_id       = module.network.security_group_ids["database"]
-  proxy_security_group_id = module.network.security_group_ids["database_proxy"]
-  min_acu                 = var.min_acu
-  max_acu                 = var.max_acu
-}
-
-module "cache" {
-  source            = "../../modules/cache"
-  count             = var.enable_cache ? 1 : 0
+  source            = "../../modules/database-rds"
   name              = local.name
   subnet_ids        = module.network.private_subnet_ids
-  security_group_id = module.network.security_group_ids["cache"]
-}
-
-locals {
-  valkey_url = var.enable_cache ? module.cache[0].url : ""
+  security_group_id = module.network.security_group_ids["database"]
 }
 
 module "read_service" {
   source                    = "../../modules/read-service"
   name                      = local.name
+  capacity                  = "ec2"
+  host_subnet_ids           = module.network.public_subnet_ids
   image                     = "${data.aws_ecr_repository.service["read-api"].repository_url}:${var.read_api_image_tag}"
   vpc_id                    = module.network.vpc_id
   subnet_ids                = module.network.private_subnet_ids
@@ -66,33 +59,42 @@ module "read_service" {
   database_host             = module.database.reader_endpoint
   database_name             = module.database.database_name
   database_secret_arn       = module.database.role_secret_arns["catalog_reader"]
-  valkey_url                = local.valkey_url
-  desired_count             = var.read_desired_count
-  max_count                 = var.read_max_count
+  valkey_url                = ""
+  cpu                       = 256
+  memory                    = 384
+  desired_count             = 1
+  max_count                 = 1
 }
 
+# Shares the t3.micro host with the read API, hence host networking and the small size.
 module "migrator" {
   source            = "../../modules/migrator"
   name              = local.name
   image             = "${data.aws_ecr_repository.service["migrator"].repository_url}:${var.migrator_image_tag}"
+  launch_type       = "EC2"
+  network_mode      = "host"
+  cpu_architecture  = "X86_64"
+  memory            = 448
   database_host     = module.database.writer_endpoint
   database_name     = module.database.database_name
   master_username   = module.database.master_username
   master_secret_arn = module.database.master_secret_arn
   reader_secret_arn = module.database.role_secret_arns["catalog_reader"]
-  writer_secret_arn = module.database.role_secret_arns["catalog_writer"]
 }
 
 module "write_api" {
-  source            = "../../modules/write-api"
-  name              = local.name
-  zip_path          = var.write_api_zip_path
-  subnet_ids        = module.network.private_subnet_ids
-  security_group_id = module.network.security_group_ids["write_lambda"]
-  proxy_endpoint    = module.database.proxy_endpoint
-  proxy_resource_id = module.database.proxy_resource_id
-  database_name     = module.database.database_name
-  valkey_url        = local.valkey_url
+  source                   = "../../modules/write-api"
+  name                     = local.name
+  zip_path                 = var.write_api_zip_path
+  subnet_ids               = module.network.private_subnet_ids
+  security_group_id        = module.network.security_group_ids["write_lambda"]
+  database_endpoint        = module.database.write_endpoint
+  database_iam_resource_id = module.database.write_iam_resource_id
+  database_name            = module.database.database_name
+  valkey_url               = ""
+  # Without RDS Proxy each instance holds its own connections; a db.t4g.micro allows
+  # about 80, so writers are capped well below that.
+  write_concurrency = 5
 }
 
 module "api_gateway" {
@@ -113,20 +115,22 @@ module "edge" {
 }
 
 module "observability" {
-  source               = "../../modules/observability"
-  name                 = local.name
-  alert_email          = var.alert_email
-  monthly_budget_usd   = var.monthly_budget_usd
-  kill_switch_zip_path = var.kill_switch_zip_path
-  http_api_id          = module.api_gateway.api_id
-  write_function_name  = module.write_api.write_function_name
-  write_function_arn   = module.write_api.write_function_arn
-  ecs_cluster_name     = module.read_service.cluster_name
-  ecs_service_name     = module.read_service.service_name
-  ecs_service_arn      = module.read_service.service_arn
-  alb_arn_suffix       = module.read_service.alb_arn_suffix
-  db_cluster_id        = module.database.cluster_id
-  db_cluster_arn       = module.database.cluster_arn
-  max_acu              = var.max_acu
-  distribution_id      = module.edge.distribution_id
+  source                     = "../../modules/observability"
+  name                       = local.name
+  alert_email                = var.alert_email
+  monthly_budget_usd         = var.monthly_budget_usd
+  http_api_id                = module.api_gateway.api_id
+  write_function_name        = module.write_api.write_function_name
+  write_function_arn         = module.write_api.write_function_arn
+  ecs_cluster_name           = module.read_service.cluster_name
+  ecs_service_name           = module.read_service.service_name
+  ecs_service_arn            = module.read_service.service_arn
+  alb_arn_suffix             = module.read_service.alb_arn_suffix
+  db_kind                    = module.database.kind
+  db_identifier              = module.database.identifier
+  db_arn                     = module.database.arn
+  distribution_id            = module.edge.distribution_id
+  enable_kill_switch         = true
+  kill_switch_zip_path       = var.kill_switch_zip_path
+  ecs_host_autoscaling_group = module.read_service.host_autoscaling_group
 }

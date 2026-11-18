@@ -30,7 +30,7 @@ resource "aws_iam_role_policy_attachment" "basic" {
   policy_arn = each.value.in_vpc ? "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole" : "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# IAM authentication to RDS Proxy as catalog_writer: the function holds no DB password.
+# IAM authentication as catalog_writer: the function holds no database password.
 resource "aws_iam_role_policy" "write_connect" {
   name = "connect-to-proxy"
   role = aws_iam_role.function["write"].id
@@ -39,7 +39,7 @@ resource "aws_iam_role_policy" "write_connect" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["rds-db:connect"]
-      Resource = "arn:aws:rds-db:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:dbuser:${var.proxy_resource_id}/catalog_writer"
+      Resource = "arn:aws:rds-db:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:dbuser:${var.database_iam_resource_id}/catalog_writer"
     }]
   })
 }
@@ -101,11 +101,14 @@ resource "aws_lambda_function" "this" {
 
   environment {
     variables = each.key == "write" ? {
-      DATABASE_HOST = var.proxy_endpoint
+      DATABASE_HOST = var.database_endpoint
       DATABASE_NAME = var.database_name
       DATABASE_USER = "catalog_writer"
       VALKEY_URL    = var.valkey_url
       NODE_OPTIONS  = "--enable-source-maps"
+      # RDS instances present certificates from the RDS CA, which Node does not trust by
+      # default; the zip ships the bundle.
+      NODE_EXTRA_CA_CERTS = "/var/task/rds-ca.pem"
       } : {
       AUTH_TOKEN_SECRET_ARN = aws_secretsmanager_secret.auth_token.arn
       NODE_OPTIONS          = "--enable-source-maps"

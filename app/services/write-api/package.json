@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node ../../scripts/bundle.mjs dist src/lambda.ts src/authorizer.ts src/local-main.ts",
-    "package": "pnpm build && cd dist && rm -f ../write-api.zip && zip -q ../write-api.zip lambda.mjs* authorizer.mjs*"
+    "package": "pnpm build && curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o dist/rds-ca.pem && cd dist && rm -f ../write-api.zip && zip -q ../write-api.zip lambda.mjs* authorizer.mjs* rds-ca.pem"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.1172.0",

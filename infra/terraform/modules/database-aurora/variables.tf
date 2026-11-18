@@ -59,3 +59,9 @@ variable "role_password_version" {
   type        = number
   default     = 1
 }
+
+variable "backup_retention_days" {
+  description = "Days of automated backups."
+  type        = number
+  default     = 1
+}

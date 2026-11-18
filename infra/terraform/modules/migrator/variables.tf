@@ -34,8 +34,33 @@ variable "reader_secret_arn" {
 }
 
 variable "writer_secret_arn" {
-  description = "Secret with the catalog_writer password."
+  description = "Secret with the catalog_writer password; null when the writer signs in with IAM."
   type        = string
+  default     = null
+}
+
+variable "launch_type" {
+  description = "FARGATE or EC2, matching the cluster's capacity."
+  type        = string
+  default     = "FARGATE"
+}
+
+variable "network_mode" {
+  description = "awsvpc on Fargate, host on the free-tier EC2 host."
+  type        = string
+  default     = "awsvpc"
+}
+
+variable "cpu_architecture" {
+  description = "ARM64 on Fargate, X86_64 on the t3.micro host."
+  type        = string
+  default     = "ARM64"
+}
+
+variable "memory" {
+  description = "Task memory in MiB."
+  type        = number
+  default     = 512
 }
 
 variable "log_retention_days" {

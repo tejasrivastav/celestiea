@@ -70,9 +70,11 @@ resource "aws_ecr_lifecycle_policy" "service" {
   policy = jsonencode({
     rules = [{
       rulePriority = 1
-      description  = "Keep the last 20 images"
-      selection    = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 20 }
-      action       = { type = "expire" }
+      # Each tag holds an arm64 and an amd64 image (about 150 MB each). Five tags per
+      # service slightly exceed the 500 MB free tier, which costs a few cents a month.
+      description = "Keep the last 5 images"
+      selection   = { tagStatus = "any", countType = "imageCountMoreThan", countNumber = 5 }
+      action      = { type = "expire" }
     }]
   })
 }
@@ -83,15 +85,15 @@ resource "aws_iam_openid_connect_provider" "github" {
 }
 
 locals {
-  # Pull requests may only plan; applies run from the protected "dev" environment, which
-  # requires a manual approval in GitHub.
+  # Pull requests may only plan; applies run from the protected "dev" and "prod" GitHub
+  # environments, which require a manual approval.
   github_roles = {
     plan = {
-      subject  = "repo:${var.github_repository}:pull_request"
+      subjects = ["repo:${var.github_repository}:pull_request"]
       policies = ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
     }
     deploy = {
-      subject  = "repo:${var.github_repository}:environment:dev"
+      subjects = ["repo:${var.github_repository}:environment:dev", "repo:${var.github_repository}:environment:prod"]
       policies = ["arn:aws:iam::aws:policy/AdministratorAccess"]
     }
   }
@@ -114,7 +116,7 @@ data "aws_iam_policy_document" "github_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [each.value.subject]
+      values   = each.value.subjects
     }
   }
 }

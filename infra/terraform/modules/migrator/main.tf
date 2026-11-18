@@ -33,7 +33,7 @@ resource "aws_iam_role_policy" "execution_secrets" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
-      Resource = [var.master_secret_arn, var.reader_secret_arn, var.writer_secret_arn]
+      Resource = compact([var.master_secret_arn, var.reader_secret_arn, var.writer_secret_arn])
     }]
   })
 }
@@ -42,15 +42,15 @@ resource "aws_iam_role_policy" "execution_secrets" {
 # "import-seed --bucket ..." to load the catalog. Nothing runs migrations at app startup.
 resource "aws_ecs_task_definition" "migrator" {
   family                   = "${var.name}-migrator"
-  requires_compatibilities = ["FARGATE"]
-  network_mode             = "awsvpc"
+  requires_compatibilities = [var.launch_type]
+  network_mode             = var.network_mode
   cpu                      = 256
-  memory                   = 512
+  memory                   = var.memory
   execution_role_arn       = aws_iam_role.execution.arn
 
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture        = "ARM64"
+    cpu_architecture        = var.cpu_architecture
   }
 
   container_definitions = jsonencode([{
@@ -64,12 +64,18 @@ resource "aws_ecs_task_definition" "migrator" {
       PGUSER       = var.master_username
       DATABASE_SSL = "true"
       AWS_REGION   = data.aws_region.current.region
+      # Without a proxy the writer signs in with IAM and has no password to set.
+      CATALOG_WRITER_IAM_AUTH = tostring(var.writer_secret_arn == null)
     } : { name = name, value = value }]
-    secrets = [
-      { name = "PGPASSWORD", valueFrom = "${var.master_secret_arn}:password::" },
-      { name = "CATALOG_READER_PASSWORD", valueFrom = "${var.reader_secret_arn}:password::" },
-      { name = "CATALOG_WRITER_PASSWORD", valueFrom = "${var.writer_secret_arn}:password::" },
-    ]
+    secrets = concat(
+      [
+        { name = "PGPASSWORD", valueFrom = "${var.master_secret_arn}:password::" },
+        { name = "CATALOG_READER_PASSWORD", valueFrom = "${var.reader_secret_arn}:password::" },
+      ],
+      var.writer_secret_arn == null ? [] : [
+        { name = "CATALOG_WRITER_PASSWORD", valueFrom = "${var.writer_secret_arn}:password::" },
+      ],
+    )
     logConfiguration = {
       logDriver = "awslogs"
       options = {

@@ -35,32 +35,7 @@ variable "monthly_budget_usd" {
   default     = 100
 }
 
-variable "enable_cache" {
-  description = "Create ElastiCache Serverless Valkey. Off: reads go to Postgres."
-  type        = bool
-  default     = true
-}
 
-variable "min_acu" {
-  description = "Minimum Aurora capacity units per instance."
-  type        = number
-  default     = 0.5
-}
 
-variable "max_acu" {
-  description = "Maximum Aurora capacity units per instance."
-  type        = number
-  default     = 4
-}
 
-variable "read_desired_count" {
-  description = "Minimum number of read API tasks."
-  type        = number
-  default     = 1
-}
 
-variable "read_max_count" {
-  description = "Maximum number of read API tasks."
-  type        = number
-  default     = 3
-}

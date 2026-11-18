@@ -1,12 +1,19 @@
 name: deploy
 
+# Dev deploys on every push to main; prod only when started by hand.
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      env:
+        description: Environment
+        type: choice
+        options: [dev, prod]
+        default: dev
 
 concurrency:
-  group: deploy-dev
+  group: deploy-${{ inputs.env || 'dev' }}
   cancel-in-progress: false
 
 permissions:
@@ -15,9 +22,9 @@ permissions:
 
 jobs:
   deploy:
-    # The "dev" environment requires a reviewer's approval before this job starts, and
-    # the deploy role trusts only tokens issued for this environment.
-    environment: dev
+    # Both GitHub environments require a reviewer's approval before this job starts, and
+    # the deploy role trusts only tokens issued for them.
+    environment: ${{ inputs.env || 'dev' }}
     runs-on: ubuntu-24.04-arm
     env:
       ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
@@ -40,4 +47,4 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: eu-central-1
-      - run: make deploy-dev TF_APPLY_FLAGS=-auto-approve
+      - run: make deploy ENV=${{ inputs.env || 'dev' }} TF_APPLY_FLAGS=-auto-approve

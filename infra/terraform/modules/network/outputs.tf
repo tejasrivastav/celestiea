@@ -12,3 +12,8 @@ output "security_group_ids" {
   description = "Security group ID by role (alb, read_service, write_lambda, database, ...)."
   value       = { for role, group in aws_security_group.this : role => group.id }
 }
+
+output "public_subnet_ids" {
+  description = "Public subnet IDs; empty unless enable_public_subnets is true."
+  value       = [for subnet in aws_subnet.public : subnet.id]
+}

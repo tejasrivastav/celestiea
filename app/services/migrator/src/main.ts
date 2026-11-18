@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { pino } from 'pino';
-import { createPool, runMigrations, setRolePasswords } from '@celestiea/db';
+import { createPool, enableIamLogin, runMigrations, setRolePassword } from '@celestiea/db';
 import { importFromS3, loadSeed } from '@celestiea/seed';
 
 // One image, two one-off jobs run as ECS tasks: `migrate` (every deploy) and
@@ -20,10 +20,14 @@ const pool = createPool({
 
 if (command === 'migrate') {
   const applied = await runMigrations(pool);
-  await setRolePasswords(pool, {
-    reader: requireEnv('CATALOG_READER_PASSWORD'),
-    writer: requireEnv('CATALOG_WRITER_PASSWORD'),
-  });
+  await setRolePassword(pool, 'catalog_reader', requireEnv('CATALOG_READER_PASSWORD'));
+  // Behind RDS Proxy (prod) the proxy signs in with the writer's password; directly on
+  // RDS (dev) the write Lambda signs in with IAM.
+  if (process.env.CATALOG_WRITER_IAM_AUTH === 'true') {
+    await enableIamLogin(pool, 'catalog_writer');
+  } else {
+    await setRolePassword(pool, 'catalog_writer', requireEnv('CATALOG_WRITER_PASSWORD'));
+  }
   logger.info({ applied }, 'migrations complete');
 } else if (command === 'import-seed') {
   if (values.bucket === undefined) {

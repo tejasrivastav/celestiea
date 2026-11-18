@@ -77,3 +77,26 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "capacity" {
+  description = "Where tasks run: \"fargate\" or \"ec2\" (one free-tier host with host networking)."
+  type        = string
+  default     = "fargate"
+
+  validation {
+    condition     = contains(["fargate", "ec2"], var.capacity)
+    error_message = "capacity must be \"fargate\" or \"ec2\"."
+  }
+}
+
+variable "host_instance_type" {
+  description = "EC2 instance type when capacity is ec2."
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "host_subnet_ids" {
+  description = "Public subnets for the EC2 host when capacity is ec2."
+  type        = list(string)
+  default     = []
+}

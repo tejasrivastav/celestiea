@@ -9,13 +9,14 @@ variable "alert_email" {
 }
 
 variable "monthly_budget_usd" {
-  description = "Monthly cost budget; reaching it triggers the kill switch."
+  description = "Monthly cost budget."
   type        = number
 }
 
 variable "kill_switch_zip_path" {
-  description = "Path to the kill switch Lambda zip."
+  description = "Path to the kill switch Lambda zip; required when enable_kill_switch is true."
   type        = string
+  default     = null
 }
 
 variable "http_api_id" {
@@ -53,19 +54,37 @@ variable "alb_arn_suffix" {
   type        = string
 }
 
-variable "db_cluster_id" {
-  description = "Aurora cluster identifier (the proxy shares the name)."
+variable "db_kind" {
+  description = "\"cluster\" (Aurora) or \"instance\" (RDS)."
   type        = string
 }
 
-variable "db_cluster_arn" {
-  description = "Aurora cluster ARN."
+variable "db_identifier" {
+  description = "Cluster or instance identifier (an Aurora proxy shares the name)."
+  type        = string
+}
+
+variable "db_arn" {
+  description = "Cluster or instance ARN."
   type        = string
 }
 
 variable "max_acu" {
-  description = "Configured maximum ACU, for the capacity alarm."
+  description = "Configured maximum ACU, for the Aurora capacity alarm."
   type        = number
+  default     = 0
+}
+
+variable "enable_kill_switch" {
+  description = "Stop the environment when the budget is reached (dev only)."
+  type        = bool
+  default     = false
+}
+
+variable "ecs_host_autoscaling_group" {
+  description = "Auto Scaling group of the ECS host to stop, or null on Fargate."
+  type        = string
+  default     = null
 }
 
 variable "distribution_id" {

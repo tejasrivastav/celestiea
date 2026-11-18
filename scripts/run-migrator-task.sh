@@ -1,21 +1,27 @@
 #!/usr/bin/env bash
 # Runs the migrator image as a one-off Fargate task and fails if the task fails.
-#   scripts/run-migrator-task.sh migrate
-#   scripts/run-migrator-task.sh import-seed --bucket <seed bucket>
+#   ENV=dev scripts/run-migrator-task.sh migrate
+#   ENV=dev scripts/run-migrator-task.sh import-seed --bucket <seed bucket>
 set -euo pipefail
 
-tf_output() { terraform -chdir=infra/terraform/envs/dev output -json "$1"; }
+tf_output() { terraform -chdir="infra/terraform/envs/${ENV:?set ENV to dev or prod}" output -json "$1"; }
 
 cluster=$(tf_output ecs_cluster | jq -r .)
 task_definition=$(tf_output migrator_task_definition | jq -r .)
-network=$(tf_output migrator_network | jq -c '{awsvpcConfiguration: {subnets: .subnets, securityGroups: .security_groups, assignPublicIp: "DISABLED"}}')
+launch=$(tf_output migrator_launch)
 command=$(jq -cn --args '["dist/main.mjs"] + $ARGS.positional' "$@")
+
+network_args=()
+# Fargate tasks get their own network interface; on the dev EC2 host they share its network.
+if [ "$(jq -r .network_mode <<<"$launch")" = "awsvpc" ]; then
+  network_args=(--network-configuration "$(jq -c '{awsvpcConfiguration: {subnets: .subnets, securityGroups: .security_groups, assignPublicIp: "DISABLED"}}' <<<"$launch")")
+fi
 
 task_arn=$(aws ecs run-task \
   --cluster "$cluster" \
   --task-definition "$task_definition" \
-  --launch-type FARGATE \
-  --network-configuration "$network" \
+  --launch-type "$(jq -r .launch_type <<<"$launch")" \
+  "${network_args[@]}" \
   --overrides "{\"containerOverrides\":[{\"name\":\"migrator\",\"command\":$command}]}" \
   --query 'tasks[0].taskArn' --output text)
 
@@ -24,5 +30,5 @@ aws ecs wait tasks-stopped --cluster "$cluster" --tasks "$task_arn"
 
 exit_code=$(aws ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
   --query 'tasks[0].containers[0].exitCode' --output text)
-echo "Migrator exited with $exit_code (logs: /ecs/celestiea-dev/migrator)"
+echo "Migrator exited with $exit_code (logs: /ecs/celestiea-$ENV/migrator)"
 [ "$exit_code" = "0" ]

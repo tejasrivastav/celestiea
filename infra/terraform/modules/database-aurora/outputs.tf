@@ -1,4 +1,9 @@
-output "cluster_id" {
+output "kind" {
+  description = "What to stop or alarm on: an Aurora cluster."
+  value       = "cluster"
+}
+
+output "identifier" {
   description = "Aurora cluster identifier."
   value       = aws_rds_cluster.this.cluster_identifier
 }
@@ -13,14 +18,19 @@ output "reader_endpoint" {
   value       = aws_rds_cluster.this.reader_endpoint
 }
 
-output "proxy_endpoint" {
-  description = "RDS Proxy endpoint (write Lambda)."
+output "write_endpoint" {
+  description = "Endpoint the write Lambda connects to: RDS Proxy."
   value       = aws_db_proxy.this.endpoint
 }
 
-output "proxy_resource_id" {
-  description = "Proxy resource ID, used in rds-db:connect IAM policies."
+output "write_iam_resource_id" {
+  description = "Resource ID in the write Lambda's rds-db:connect permission (the proxy)."
   value       = element(split(":", aws_db_proxy.this.arn), 6)
+}
+
+output "writer_signs_in_with_iam" {
+  description = "False: the proxy signs in to Postgres with the writer's password."
+  value       = false
 }
 
 output "database_name" {
@@ -48,7 +58,7 @@ output "seed_bucket" {
   value       = aws_s3_bucket.seed.bucket
 }
 
-output "cluster_arn" {
+output "arn" {
   description = "Aurora cluster ARN."
   value       = aws_rds_cluster.this.arn
 }

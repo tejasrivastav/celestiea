@@ -25,8 +25,9 @@ resource "aws_rds_cluster" "this" {
   db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.this.name
   vpc_security_group_ids          = [var.security_group_id]
   storage_encrypted               = true
-  backup_retention_period         = 1
-  skip_final_snapshot             = true
+  backup_retention_period         = var.backup_retention_days
+  skip_final_snapshot             = !var.deletion_protection
+  final_snapshot_identifier       = var.deletion_protection ? "${var.name}-final" : null
   deletion_protection             = var.deletion_protection
 
   # Scale to zero is not used: the read API's pool, the ALB readiness checks and RDS Proxy

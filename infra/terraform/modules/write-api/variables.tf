@@ -18,13 +18,13 @@ variable "security_group_id" {
   type        = string
 }
 
-variable "proxy_endpoint" {
-  description = "RDS Proxy endpoint."
+variable "database_endpoint" {
+  description = "Where the write function connects: RDS Proxy (prod) or the instance (dev)."
   type        = string
 }
 
-variable "proxy_resource_id" {
-  description = "RDS Proxy resource ID for the rds-db:connect permission."
+variable "database_iam_resource_id" {
+  description = "Proxy or instance resource ID for the rds-db:connect permission."
   type        = string
 }
 

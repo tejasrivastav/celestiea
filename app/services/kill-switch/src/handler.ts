@@ -3,15 +3,16 @@ import {
   ApplicationAutoScalingClient,
   RegisterScalableTargetCommand,
 } from '@aws-sdk/client-application-auto-scaling';
+import { AutoScalingClient, UpdateAutoScalingGroupCommand } from '@aws-sdk/client-auto-scaling';
 import { ECSClient, UpdateServiceCommand } from '@aws-sdk/client-ecs';
 import { LambdaClient, PutFunctionConcurrencyCommand } from '@aws-sdk/client-lambda';
-import { RDSClient, StopDBClusterCommand } from '@aws-sdk/client-rds';
+import { RDSClient, StopDBClusterCommand, StopDBInstanceCommand } from '@aws-sdk/client-rds';
 import { pino } from 'pino';
 
 const logger = pino();
 
-// Invoked when the monthly budget is exceeded (via SNS) and when Aurora starts itself after
-// seven days stopped (via EventBridge). It stops spend without deleting anything, so
+// Invoked when the monthly budget is exceeded (via SNS) and when the database starts itself
+// after seven days stopped (via EventBridge). It stops spend without deleting anything, so
 // `make resume-dev` (terraform apply plus starting the cluster) brings everything back.
 // ElastiCache Serverless cannot be paused; its minimum charge keeps running.
 export async function handler(): Promise<void> {
@@ -63,13 +64,29 @@ export async function handler(): Promise<void> {
         ),
     ],
     [
-      'stop Aurora cluster',
+      'stop database',
       () =>
-        new RDSClient({}).send(
-          new StopDBClusterCommand({ DBClusterIdentifier: env.DB_CLUSTER_ID }),
-        ),
+        env.DB_KIND === 'cluster'
+          ? new RDSClient({}).send(new StopDBClusterCommand({ DBClusterIdentifier: env.DB_ID }))
+          : new RDSClient({}).send(new StopDBInstanceCommand({ DBInstanceIdentifier: env.DB_ID })),
     ],
   ];
+  // Dev runs the read API on an EC2 capacity provider; its single host is stopped too.
+  const autoScalingGroup = process.env.ECS_HOST_AUTOSCALING_GROUP;
+  if (autoScalingGroup) {
+    steps.push([
+      'stop ECS host',
+      () =>
+        new AutoScalingClient({}).send(
+          new UpdateAutoScalingGroupCommand({
+            AutoScalingGroupName: autoScalingGroup,
+            MinSize: 0,
+            MaxSize: 0,
+            DesiredCapacity: 0,
+          }),
+        ),
+    ]);
+  }
 
   // Each step runs even if an earlier one fails (for example, the cluster is already
   // stopped), so one error never leaves the rest of the spend running.
@@ -94,7 +111,8 @@ function readEnv() {
     'WRITE_FUNCTION_NAME',
     'ECS_CLUSTER',
     'ECS_SERVICE',
-    'DB_CLUSTER_ID',
+    'DB_KIND',
+    'DB_ID',
   ] as const;
   const env = {} as Record<(typeof names)[number], string>;
   for (const name of names) {

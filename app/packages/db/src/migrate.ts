@@ -46,17 +46,21 @@ export async function runMigrations(pool: pg.Pool): Promise<string[]> {
   }
 }
 
-export async function setRolePasswords(
+export async function setRolePassword(
   pool: pg.Pool,
-  passwords: { reader: string; writer: string },
+  role: 'catalog_reader' | 'catalog_writer',
+  password: string,
 ): Promise<void> {
   const client = await pool.connect();
   try {
-    const reader = client.escapeLiteral(passwords.reader);
-    const writer = client.escapeLiteral(passwords.writer);
-    await client.query(`ALTER ROLE catalog_reader WITH LOGIN PASSWORD ${reader}`);
-    await client.query(`ALTER ROLE catalog_writer WITH LOGIN PASSWORD ${writer}`);
+    await client.query(`ALTER ROLE ${role} WITH LOGIN PASSWORD ${client.escapeLiteral(password)}`);
   } finally {
     client.release();
   }
+}
+
+// On RDS without a proxy the writer signs in with an IAM token instead of a password.
+export async function enableIamLogin(pool: pg.Pool, role: 'catalog_writer'): Promise<void> {
+  await pool.query(`ALTER ROLE ${role} WITH LOGIN`);
+  await pool.query(`GRANT rds_iam TO ${role}`);
 }

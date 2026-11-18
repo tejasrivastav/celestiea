@@ -15,8 +15,10 @@ resource "aws_vpc" "this" {
   tags                 = { Name = var.name }
 }
 
-# Private subnets only. There is no internet gateway and no NAT: AWS APIs are reached
-# through VPC endpoints, so nothing in the VPC has a path to the internet.
+# The database, Lambda and ALB always live in private subnets without an internet route.
+# In prod everything does, and AWS APIs are reached through interface endpoints. The
+# free-tier dev environment instead puts its single ECS host in a public subnet, because
+# interface endpoints cost more per month than the rest of dev combined.
 resource "aws_subnet" "private" {
   for_each          = { for index, az in local.azs : az => index }
   vpc_id            = aws_vpc.this.id
@@ -36,8 +38,8 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private.id
 }
 
-# Free gateway endpoint: ECR image layers, the seed bucket and Aurora's
-# aws_s3 import all go through it.
+# Free gateway endpoint: ECR image layers and the database's aws_s3 seed import go
+# through it.
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.this.id
   service_name      = "com.amazonaws.${data.aws_region.current.region}.s3"
@@ -46,8 +48,40 @@ resource "aws_vpc_endpoint" "s3" {
   tags              = { Name = "${var.name}-s3" }
 }
 
+resource "aws_internet_gateway" "this" {
+  count  = var.enable_public_subnets ? 1 : 0
+  vpc_id = aws_vpc.this.id
+  tags   = { Name = var.name }
+}
+
+resource "aws_subnet" "public" {
+  for_each                = var.enable_public_subnets ? { for index, az in local.azs : az => index } : {}
+  vpc_id                  = aws_vpc.this.id
+  availability_zone       = each.key
+  cidr_block              = cidrsubnet(var.cidr, 4, 8 + each.value)
+  map_public_ip_on_launch = true
+  tags                    = { Name = "${var.name}-public-${each.key}" }
+}
+
+resource "aws_route_table" "public" {
+  count  = var.enable_public_subnets ? 1 : 0
+  vpc_id = aws_vpc.this.id
+  tags   = { Name = "${var.name}-public" }
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.this[0].id
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  for_each       = aws_subnet.public
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.public[0].id
+}
+
 resource "aws_vpc_endpoint" "interface" {
-  for_each            = toset(["ecr.api", "ecr.dkr", "logs", "secretsmanager"])
+  for_each            = var.enable_interface_endpoints ? toset(["ecr.api", "ecr.dkr", "logs", "secretsmanager"]) : toset([])
   vpc_id              = aws_vpc.this.id
   service_name        = "com.amazonaws.${data.aws_region.current.region}.${each.key}"
   vpc_endpoint_type   = "Interface"
@@ -76,10 +110,16 @@ locals {
     alb_to_read_service      = { to = "read_service", from = "alb", port = 3000 }
     read_service_to_database = { to = "database", from = "read_service", port = 5432 }
     migrator_to_database     = { to = "database", from = "migrator", port = 5432 }
-    proxy_to_database        = { to = "database", from = "database_proxy", port = 5432 }
-    write_lambda_to_proxy    = { to = "database_proxy", from = "write_lambda", port = 5432 }
     read_service_to_cache    = { to = "cache", from = "read_service", port = 6379 }
     write_lambda_to_cache    = { to = "cache", from = "write_lambda", port = 6379 }
+  }
+
+  # Behind RDS Proxy the Lambda can only reach the proxy; without one, the database.
+  write_path_rules = var.database_proxy ? {
+    proxy_to_database     = { to = "database", from = "database_proxy", port = 5432 }
+    write_lambda_to_proxy = { to = "database_proxy", from = "write_lambda", port = 5432 }
+    } : {
+    write_lambda_to_database = { to = "database", from = "write_lambda", port = 5432 }
   }
 }
 
@@ -91,7 +131,7 @@ resource "aws_security_group" "this" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "between_groups" {
-  for_each                     = local.ingress_rules
+  for_each                     = merge(local.ingress_rules, local.write_path_rules)
   security_group_id            = aws_security_group.this[each.value.to].id
   referenced_security_group_id = aws_security_group.this[each.value.from].id
   ip_protocol                  = "tcp"
