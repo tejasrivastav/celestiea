@@ -87,7 +87,7 @@ const women = adultTree(
       ['midi', 'Midi dresses', 'dress', 'alpha', 'midi dress'],
       ['mini', 'Mini dresses', 'dress', 'alpha', 'mini dress'],
       ['shirt-dresses', 'Shirt dresses', 'dress', 'alpha', 'shirt dress'],
-      ['knitted-dresses', 'Knitted dresses', 'dress', 'alpha', 'knitted dress'],
+      ['knitted-dresses', 'Knitted dresses', 'knit', 'alpha', 'knitted dress'],
     ]),
     group('tops', 'Tops', [
       ['t-shirts', 'T-shirts', 'top', 'alpha', 'T-shirt'],

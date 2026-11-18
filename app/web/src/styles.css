@@ -178,6 +178,7 @@ main {
 
 .catalog-sidebar {
   display: grid;
+  align-content: start;
   gap: 16px;
 }
 

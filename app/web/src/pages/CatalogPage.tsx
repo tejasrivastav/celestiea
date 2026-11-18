@@ -94,6 +94,8 @@ export default function CatalogPage() {
   );
 }
 
+// Lists the subcategories of the current category, or its siblings when it is a leaf,
+// with a link one level up.
 function CategoryNav({
   categories,
   current,
@@ -101,15 +103,16 @@ function CategoryNav({
   categories: Category[];
   current: Category | undefined;
 }) {
-  const parentSlug =
+  const containerSlug =
     current === undefined ? null : current.isLeaf ? current.parentSlug : current.slug;
-  const children = categories.filter((category) => category.parentSlug === parentSlug);
-  const parent = categories.find((category) => category.slug === parentSlug);
+  const container = categories.find((category) => category.slug === containerSlug);
+  const children = categories.filter((category) => category.parentSlug === containerSlug);
+  const up = categories.find((category) => category.slug === container?.parentSlug);
   return (
     <nav aria-label="Categories" className="category-nav">
-      {parent && (
-        <Link className="category-up" to={parent.parentSlug ? `/c/${parent.parentSlug}` : '/'}>
-          ‹ {parent.name}
+      {container && (
+        <Link className="category-up" to={up ? `/c/${up.slug}` : '/'}>
+          ‹ {up ? up.name : 'All products'}
         </Link>
       )}
       <ul>
