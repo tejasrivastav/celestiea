@@ -2,10 +2,11 @@ import type { ArticleSort } from './catalog';
 import { DomainError } from './errors';
 
 // A keyset position: the sort column's value of the last row plus its id as tiebreaker.
+// The key is Postgres' text form of the value, so timestamps keep microsecond precision.
 // The sort is embedded so a cursor from one ordering can't be replayed against another.
 export interface Cursor {
   sort: ArticleSort;
-  key: number | string;
+  key: string;
   id: number;
 }
 
@@ -36,7 +37,7 @@ function isCursor(value: unknown): value is Cursor {
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate.sort === 'string' &&
-    (typeof candidate.key === 'number' || typeof candidate.key === 'string') &&
+    typeof candidate.key === 'string' &&
     Number.isSafeInteger(candidate.id)
   );
 }
