@@ -1,11 +1,10 @@
-name: app-ci
+# Checks that need no AWS credentials. Deploys run from a laptop with make deploy.
+name: ci
 
 on:
   pull_request:
-    paths: ['app/**', '.github/workflows/app-ci.yml']
   push:
     branches: [main]
-    paths: ['app/**']
 
 jobs:
   test:
@@ -52,3 +51,21 @@ jobs:
           for service in read-api migrator write-api; do
             docker buildx build -f app/services/$service/Dockerfile app
           done
+
+  terraform:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.x
+      - uses: terraform-linters/setup-tflint@v4
+      - run: terraform fmt -check -recursive
+      - run: tflint --init && tflint --recursive --config "$PWD/.tflint.hcl"
+      - name: Validate roots
+        run: for root in bootstrap envs/dev envs/prod; do terraform -chdir=$root init -backend=false -input=false && terraform -chdir=$root validate; done
+      - name: Module tests (mocked providers, no AWS access)
+        run: for module in database-aurora database-rds edge; do (cd modules/$module && terraform init -backend=false && terraform test); done

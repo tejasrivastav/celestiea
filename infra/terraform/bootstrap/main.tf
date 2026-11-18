@@ -1,5 +1,7 @@
 # One-time setup per AWS account, applied from a laptop with admin credentials. It keeps
 # local state on purpose: it creates the bucket every other root stores its state in.
+# Deploys run from a laptop (make deploy). CI deploys would add a GitHub OIDC provider and
+# roles here; this account's organization policy denies creating OIDC providers.
 terraform {
   required_version = ">= 1.10"
   required_providers {
@@ -77,83 +79,4 @@ resource "aws_ecr_lifecycle_policy" "service" {
       action      = { type = "expire" }
     }]
   })
-}
-
-resource "aws_iam_openid_connect_provider" "github" {
-  url            = "https://token.actions.githubusercontent.com"
-  client_id_list = ["sts.amazonaws.com"]
-}
-
-locals {
-  # Pull requests may only plan; applies run from the protected "dev" and "prod" GitHub
-  # environments, which require a manual approval.
-  github_roles = {
-    plan = {
-      subjects = ["repo:${var.github_repository}:pull_request"]
-      policies = ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
-    }
-    deploy = {
-      subjects = ["repo:${var.github_repository}:environment:dev", "repo:${var.github_repository}:environment:prod"]
-      policies = ["arn:aws:iam::aws:policy/AdministratorAccess"]
-    }
-  }
-}
-
-data "aws_iam_policy_document" "github_trust" {
-  for_each = local.github_roles
-
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-    principals {
-      type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.github.arn]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:sub"
-      values   = each.value.subjects
-    }
-  }
-}
-
-resource "aws_iam_role" "github" {
-  for_each           = local.github_roles
-  name               = "celestiea-github-${each.key}"
-  assume_role_policy = data.aws_iam_policy_document.github_trust[each.key].json
-}
-
-resource "aws_iam_role_policy_attachment" "github" {
-  for_each = {
-    for pair in flatten([
-      for role, config in local.github_roles : [
-        for policy in config.policies : { key = "${role}-${basename(policy)}", role = role, policy = policy }
-      ]
-    ]) : pair.key => pair
-  }
-  role       = aws_iam_role.github[each.value.role].name
-  policy_arn = each.value.policy
-}
-
-# Plans take the state lock, which writes a lock object, so the read-only role still
-# needs write access to the state bucket.
-data "aws_iam_policy_document" "plan_state" {
-  statement {
-    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-    resources = ["${aws_s3_bucket.state.arn}/*"]
-  }
-  statement {
-    actions   = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.state.arn]
-  }
-}
-
-resource "aws_iam_role_policy" "plan_state" {
-  name   = "terraform-state"
-  role   = aws_iam_role.github["plan"].id
-  policy = data.aws_iam_policy_document.plan_state.json
 }

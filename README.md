@@ -47,7 +47,7 @@ curl -s -X PATCH localhost:8080/v1/articles/<SKU> \
 Prerequisites: AWS credentials for the account, Terraform ≥ 1.11, Docker with buildx, jq.
 
 ```sh
-make bootstrap                                   # once: state bucket, ECR, GitHub OIDC roles
+make bootstrap                                   # once: state bucket and ECR repositories
 make deploy ENV=dev ALERT_EMAIL=you@example.com  # build, push, apply, migrate, publish UI, smoke test
 make seed ENV=dev                                # generate locally, upload to S3, import inside the VPC
 ```
@@ -64,10 +64,11 @@ month on the legacy free tier, about $55 without it); prod is about $340 a month
 ([cost](docs/cost.md)). In dev a $100 budget triggers a kill switch that stops the
 environment; `make resume ENV=dev` brings it back.
 
-CI (`.github/workflows`): `app-ci` lints, type-checks, tests and builds on every PR;
-`infra-plan` runs fmt, tflint, module tests and a plan for both environments, posted on
-the PR; `deploy` deploys dev from `main` after approval, and prod only when started by
-hand. All AWS access uses OIDC roles.
+CI (`.github/workflows/ci.yml`) needs no AWS access: it lints, type-checks, tests and
+builds the app and images, and runs Terraform fmt, tflint, validate and the module tests.
+Deploys run from a laptop with `make deploy`. Deploying from CI would need a GitHub OIDC
+provider and role in the account; this account's organization policy denies creating
+OIDC providers, so that part was removed rather than replaced with long-lived keys.
 
 ## Architecture
 

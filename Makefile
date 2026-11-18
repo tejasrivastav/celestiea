@@ -29,11 +29,8 @@ lint:
 
 ENV ?= dev
 AWS_REGION ?= eu-north-1
-# Locally the AWS CLI profile for the project account; GitHub Actions (CI=true) gets
-# credentials from its OIDC role instead, where a profile name would break the SDK.
-ifndef CI
+# AWS CLI profile for the project account.
 export AWS_PROFILE ?= celestiea
-endif
 TF_BOOTSTRAP := infra/terraform/bootstrap
 TF_ENV := infra/terraform/envs/$(ENV)
 GIT_SHA := $(shell git rev-parse --short=12 HEAD)
@@ -48,7 +45,7 @@ tf_output_json = $(shell terraform -chdir=$(TF_ENV) output -json $(1) | jq -r '$
 
 .PHONY: bootstrap tf-init artifacts plan deploy deploy-ui seed smoke resume destroy
 
-## One-time: state bucket, ECR repositories and GitHub OIDC roles (local state)
+## One-time: state bucket and ECR repositories (local state)
 bootstrap:
 	terraform -chdir=$(TF_BOOTSTRAP) init
 	terraform -chdir=$(TF_BOOTSTRAP) apply

@@ -9,9 +9,10 @@ A dev environment must run within the AWS free tier while prod shows the intende
 
 - **Terraform** (≥ 1.11) with S3 remote state and native S3 locking (`use_lockfile`).
   A `bootstrap/` root (local state) creates the state bucket, the ECR repositories (images
-  are pushed before `apply`) and GitHub OIDC roles; CI never holds long-lived keys.
+  are pushed before `apply`). Deploys run from a laptop; CI only runs checks and holds no
+  AWS credentials.
 - **`app/` and `infra/` never import each other.** Infra receives build artifacts only as
-  variables: image tags and Lambda zip paths. The Makefile and the deploy workflow build
+  variables: image tags and Lambda zip paths. The Makefile builds
   the artifacts and pass them in.
 - Small modules with one responsibility (network, database, cache, read service,
   migrator, write API, API Gateway, edge, observability). All security group rules live in

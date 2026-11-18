@@ -7,8 +7,3 @@ output "ecr_repository_urls" {
   description = "ECR repository URL per service image."
   value       = { for name, repository in aws_ecr_repository.service : name => repository.repository_url }
 }
-
-output "github_role_arns" {
-  description = "Role ARNs for the GitHub Actions workflows (plan and deploy)."
-  value       = { for name, role in aws_iam_role.github : name => role.arn }
-}
