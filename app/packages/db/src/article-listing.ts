@@ -5,6 +5,7 @@ import {
   type ArticleListQuery,
   type ArticleSort,
   type ArticleTile,
+  type ImageKind,
 } from '@celestiea/domain';
 import { findCategoryLeafIds } from './catalog-reference';
 
@@ -100,10 +101,12 @@ interface TileRow extends Omit<ArticleTile, 'brand' | 'price' | 'image'> {
   sortKey: string;
   brandSlug: string;
   brandName: string;
+  brandIsPremium: boolean;
   priceCents: number;
   originalPriceCents: number | null;
   discountPct: number;
   currency: string;
+  imageKind: ImageKind | null;
   imageUrl: string | null;
   imageWidth: number | null;
   imageHeight: number | null;
@@ -134,6 +137,7 @@ export async function listArticles(pool: pg.Pool, query: ArticleListQuery): Prom
             p.name AS "productName",
             b.slug AS "brandSlug",
             b.name AS "brandName",
+            b.is_premium AS "brandIsPremium",
             a.color_name AS "colorName",
             a.color_family AS "colorFamily",
             a.price_cents AS "priceCents",
@@ -141,6 +145,7 @@ export async function listArticles(pool: pg.Pool, query: ArticleListQuery): Prom
             a.discount_pct AS "discountPct",
             a.currency,
             a.sort_key AS "sortKey",
+            image.kind AS "imageKind",
             image.url AS "imageUrl",
             image.width AS "imageWidth",
             image.height AS "imageHeight",
@@ -155,7 +160,7 @@ export async function listArticles(pool: pg.Pool, query: ArticleListQuery): Prom
        JOIN products p ON p.id = a.product_id
        JOIN brands b ON b.id = a.brand_id
        LEFT JOIN LATERAL (
-         SELECT i.url, i.width, i.height
+         SELECT i.kind, i.url, i.width, i.height
            FROM article_images i
           WHERE i.article_id = a.id
           ORDER BY i.position
@@ -215,7 +220,7 @@ function toTile(row: TileRow): ArticleTile {
     sku: row.sku,
     productId: row.productId,
     productName: row.productName,
-    brand: { slug: row.brandSlug, name: row.brandName },
+    brand: { slug: row.brandSlug, name: row.brandName, isPremium: row.brandIsPremium },
     colorName: row.colorName,
     colorFamily: row.colorFamily,
     price: {
@@ -225,9 +230,14 @@ function toTile(row: TileRow): ArticleTile {
       currency: row.currency,
     },
     image:
-      row.imageUrl === null
+      row.imageKind === null
         ? null
-        : { url: row.imageUrl, width: row.imageWidth ?? 0, height: row.imageHeight ?? 0 },
+        : {
+            kind: row.imageKind,
+            url: row.imageUrl ?? '',
+            width: row.imageWidth ?? 0,
+            height: row.imageHeight ?? 0,
+          },
     availableSizes: row.availableSizes,
   };
 }

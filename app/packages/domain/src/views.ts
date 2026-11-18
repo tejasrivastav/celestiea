@@ -21,16 +21,22 @@ export interface Image {
   height: number;
 }
 
+export interface Brand {
+  slug: string;
+  name: string;
+  isPremium: boolean;
+}
+
 export interface ArticleTile {
   id: number;
   sku: string;
   productId: number;
   productName: string;
-  brand: { slug: string; name: string };
+  brand: Brand;
   colorName: string;
   colorFamily: ColorFamily;
   price: Price;
-  image: Omit<Image, 'kind'> | null;
+  image: Image | null;
   availableSizes: string[];
 }
 
@@ -75,7 +81,7 @@ export interface ProductView {
   targetGroup: TargetGroup;
   attributes: ProductAttributes;
   sustainability: string[];
-  brand: { slug: string; name: string; isPremium: boolean };
+  brand: Brand;
   category: { slug: string; name: string; path: string };
   sizeSystem: SizeSystem | null;
   updatedAt: string;

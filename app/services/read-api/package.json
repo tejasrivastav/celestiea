@@ -1,0 +1,14 @@
+{
+  "name": "@celestiea/read-api",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@celestiea/db": "workspace:*",
+    "@celestiea/domain": "workspace:*",
+    "@fastify/etag": "^6.2.2",
+    "fastify": "^5.12.8",
+    "graphql": "^16.15.0",
+    "iovalkey": "~0.3.3",
+    "mercurius": "^16.12.2"
+  }
+}
