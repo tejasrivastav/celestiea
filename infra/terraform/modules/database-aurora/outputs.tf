@@ -53,10 +53,6 @@ output "role_secret_arns" {
   value       = { for role, secret in aws_secretsmanager_secret.role : role => secret.arn }
 }
 
-output "seed_bucket" {
-  description = "Bucket the seed CSVs are uploaded to."
-  value       = aws_s3_bucket.seed.bucket
-}
 
 output "arn" {
   description = "Aurora cluster ARN."

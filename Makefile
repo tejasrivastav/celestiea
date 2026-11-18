@@ -79,8 +79,9 @@ deploy-ui:
 	aws s3 cp $(APP)/web/dist/index.html s3://$(call tf_output,ui_bucket)/index.html --cache-control "no-cache"
 	aws cloudfront create-invalidation --distribution-id $(call tf_output,distribution_id) --paths /index.html >/dev/null
 
-## Generate the full catalog locally, upload it and import it inside the VPC
+## Generate the full catalog locally, upload it and import it inside the VPC (dev only)
 seed:
+	$(if $(filter dev,$(ENV)),,$(error Synthetic seed data is for dev only))
 	cd $(APP) && pnpm seed --scale=full --generate-only
 	aws s3 cp --recursive --content-encoding gzip $(APP)/packages/seed/data/full s3://$(call tf_output,seed_bucket)/seed/full/
 	ENV=$(ENV) scripts/run-migrator-task.sh import-seed --bucket $(call tf_output,seed_bucket)

@@ -13,10 +13,6 @@ output "distribution_id" {
   value       = module.edge.distribution_id
 }
 
-output "seed_bucket" {
-  description = "Bucket for seed CSVs."
-  value       = module.database.seed_bucket
-}
 
 output "ecs_cluster" {
   description = "ECS cluster for read API and migrator tasks."

@@ -30,9 +30,4 @@ run "database_is_private_and_encrypted" {
     condition     = aws_db_proxy.this.require_tls && one(aws_db_proxy.this.auth).iam_auth == "REQUIRED"
     error_message = "RDS Proxy must require TLS and IAM authentication."
   }
-
-  assert {
-    condition     = aws_s3_bucket_public_access_block.seed.block_public_acls && aws_s3_bucket_public_access_block.seed.restrict_public_buckets
-    error_message = "The seed bucket must block public access."
-  }
 }

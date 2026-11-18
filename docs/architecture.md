@@ -2,15 +2,15 @@
 
 ## Components
 
-| Component                | Runs on                                   | Code                                       | Talks to                                       |
-| ------------------------ | ----------------------------------------- | ------------------------------------------ | ---------------------------------------------- |
-| Storefront and admin UI  | S3 + CloudFront                           | `app/web`                                  | `/v1/graphql`, `/v1/*`                         |
-| Read API (GraphQL)       | ECS: Fargate in prod, one EC2 host in dev | `app/services/read-api`                    | Postgres reader, Valkey                        |
-| Write API (REST)         | Lambda, in the VPC                        | `app/services/write-api`                   | RDS Proxy (prod) or the instance (dev), Valkey |
-| Authorizer               | Lambda, outside the VPC                   | `app/services/write-api/src/authorizer.ts` | Secrets Manager                                |
-| Migrator and seed import | One-off ECS task                          | `app/services/migrator`                    | Postgres writer, S3 via `aws_s3`               |
-| Kill switch (dev)        | Lambda                                    | `app/services/kill-switch`                 | API Gateway, Lambda, ECS, Auto Scaling, RDS    |
-| Shared code              |                                           | `app/packages/domain`, `app/packages/db`   |                                                |
+| Component                          | Runs on                                   | Code                                       | Talks to                                       |
+| ---------------------------------- | ----------------------------------------- | ------------------------------------------ | ---------------------------------------------- |
+| Storefront and admin UI            | S3 + CloudFront                           | `app/web`                                  | `/v1/graphql`, `/v1/*`                         |
+| Read API (GraphQL)                 | ECS: Fargate in prod, one EC2 host in dev | `app/services/read-api`                    | Postgres reader, Valkey                        |
+| Write API (REST)                   | Lambda, in the VPC                        | `app/services/write-api`                   | RDS Proxy (prod) or the instance (dev), Valkey |
+| Authorizer                         | Lambda, outside the VPC                   | `app/services/write-api/src/authorizer.ts` | Secrets Manager                                |
+| Migrator (seed import in dev only) | One-off ECS task                          | `app/services/migrator`                    | Postgres writer, S3 via `aws_s3` (dev)         |
+| Kill switch (dev)                  | Lambda                                    | `app/services/kill-switch`                 | API Gateway, Lambda, ECS, Auto Scaling, RDS    |
+| Shared code                        |                                           | `app/packages/domain`, `app/packages/db`   |                                                |
 
 ## Read request
 
@@ -110,8 +110,7 @@ flowchart LR
 
     AG -- "GET/POST /v1/graphql" --> VL
     AG -- "other /v1 routes, invoke" --> W
-    S3GW --> SEED[(S3 seed bucket and ECR layers)]
-    DB -. "aws_s3 import" .-> S3GW
+    S3GW --> LAYERS[(ECR image layers in S3)]
 ```
 
 Two AZs, private subnets only, no internet gateway or NAT. ECR, CloudWatch Logs and
