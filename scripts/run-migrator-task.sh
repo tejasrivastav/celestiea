@@ -21,7 +21,7 @@ task_arn=$(aws ecs run-task \
   --cluster "$cluster" \
   --task-definition "$task_definition" \
   --launch-type "$(jq -r .launch_type <<<"$launch")" \
-  "${network_args[@]}" \
+  ${network_args[@]+"${network_args[@]}"} \
   --overrides "{\"containerOverrides\":[{\"name\":\"migrator\",\"command\":$command}]}" \
   --query 'tasks[0].taskArn' --output text)
 
