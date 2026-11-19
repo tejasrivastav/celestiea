@@ -31,9 +31,40 @@ How to read these:
   query that builds articles, sizes and images.
 - Runs on this laptop vary by up to 2x. An earlier run of the same script measured cold
   product detail at 21 ms p50 and 43 ms p95.
-- There are no numbers from AWS yet. They will be added after the first deployment; the
-  free-tier dev environment (db.t4g.micro, one t3.micro) is expected to be slower and will
-  be labelled as such.
+- Numbers from the deployed dev environment are in the next section.
+
+## Dev on AWS
+
+Dev environment in eu-north-1: CloudFront, API Gateway, one t3.micro ECS host, RDS
+db.t4g.micro, no Valkey, small seed (5,066 articles). k6 ran on the same laptop from
+outside AWS; the nearest CloudFront edge answered a static file in 8 ms connect and 76 ms
+to first byte. Same script as above without the write scenario, measured 2026-11-19:
+
+```sh
+cd app && k6 run -e BASE_URL=https://d355y0in4rw4ow.cloudfront.net -e PRODUCT_COUNT=2000 bench/catalog.k6.js
+```
+
+| Scenario (latency at the client) | Requests | p50     | p95     | p99     |
+| -------------------------------- | -------- | ------- | ------- | ------- |
+| Filtered listing                 | 17,575   | 9.6 ms  | 14.4 ms | 26.4 ms |
+| Deep pages                       | 10,200   | 8.5 ms  | 12.2 ms | 35.0 ms |
+| Product detail, random product   | 7,380    | 16.1 ms | 60.6 ms | 99.4 ms |
+| Product detail, 20 hot products  | 21,530   | 8.4 ms  | 11.8 ms | 16.5 ms |
+
+596 requests per second overall, and **95.2% were answered by CloudFront** without
+reaching the origin. The client-side numbers therefore mostly measure the edge. What
+reached dev, from the API Gateway access logs:
+
+| At the origin (API Gateway latency) | Requests | p50   | p95    | p99    |
+| ----------------------------------- | -------- | ----- | ------ | ------ |
+| GraphQL cache misses, 200           | 2,212    | 29 ms | 126 ms | 136 ms |
+| Throttled, 429                      | 390      |       |        |        |
+
+The 429s (0.68% of all requests) are API Gateway's stage throttle in dev (100 rps steady,
+200 burst). Each scenario started with a cold cache and sent a burst of misses above the
+burst limit; averaged over the run only about 26 rps reached the origin. The small seed
+and random filters from only a few categories make the hit rate higher than real traffic
+would; the full seed and a realistic URL mix would lower it.
 
 ## Prepared statements
 

@@ -209,7 +209,12 @@ Local compose stack, full seed, k6 on the same 2017 laptop ([details](docs/bench
 | Price update (write)        | 25.1 ms | 59.4 ms  |
 
 The database part of a listing is about 1 ms; most of the rest is the laptop running
-Docker, the gateway and the load generator together. No AWS numbers yet.
+Docker, the gateway and the load generator together.
+
+On the deployed dev environment (free-tier sized, small seed) the same script ran at
+596 rps with 95% of reads served by CloudFront at about 9 ms p50; the 2,212 cache misses
+took 29 ms p50 and 126 ms p95 at the origin, and bursts above the dev throttle got 429
+([details](docs/benchmarks.md#dev-on-aws)).
 
 ## Known limitations and next steps
 

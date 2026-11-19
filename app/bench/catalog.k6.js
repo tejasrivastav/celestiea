@@ -3,10 +3,11 @@
 // Each scenario records its own latency trend so the summary shows p50/p95 per workload.
 import http from 'k6/http';
 import { check } from 'k6';
-import { Trend } from 'k6/metrics';
+import { Rate, Trend } from 'k6/metrics';
 
 const baseUrl = __ENV.BASE_URL || 'http://localhost:8080';
 const token = __ENV.TOKEN;
+const productCount = Number(__ENV.PRODUCT_COUNT || 120000);
 
 const trends = {
   listing: new Trend('listing_filtered', true),
@@ -15,6 +16,8 @@ const trends = {
   productWarm: new Trend('product_detail_warm', true),
   write: new Trend('write_price_update', true),
 };
+// Share of reads answered by CloudFront without reaching the origin (absent locally).
+const cloudfrontHits = new Rate('cloudfront_hit_rate');
 
 const categories = [
   'women',
@@ -56,6 +59,10 @@ function graphql(query, variables, trend) {
   const params = `query=${encodeURIComponent(query)}&variables=${encodeURIComponent(JSON.stringify(variables))}`;
   const response = http.get(`${baseUrl}/v1/graphql?${params}`);
   trend.add(response.timings.duration);
+  const cache = response.headers['X-Cache'];
+  if (cache) {
+    cloudfrontHits.add(cache.startsWith('Hit'));
+  }
   check(response, { 'status 200': (r) => r.status === 200 && !r.json('errors') });
   return response;
 }
@@ -99,9 +106,13 @@ export function deepPages() {
 
 const productQuery = `query ($id: ID!) { product(id: $id) { name articles { sku price { currentCents } sizes { label availability } } } }`;
 
-// Random ids across the catalog: almost every request misses Valkey.
+// Random ids across the catalog: almost every request misses Valkey and CloudFront.
 export function productCold() {
-  graphql(productQuery, { id: String(1 + Math.floor(Math.random() * 120000)) }, trends.productCold);
+  graphql(
+    productQuery,
+    { id: String(1 + Math.floor(Math.random() * productCount)) },
+    trends.productCold,
+  );
 }
 
 export function productWarm(data) {
