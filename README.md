@@ -5,76 +5,24 @@ Lambda, PostgreSQL, and a React storefront with an admin page, all provisioned o
 Terraform. Built as a take-home assignment; brands and products are generated and
 fictional.
 
-**Live URL (dev, free-tier sized):** https://d355y0in4rw4ow.cloudfront.net, seeded with the small catalog (about 5k articles)
+**Live URL (dev, free-tier sized):** https://d355y0in4rw4ow.cloudfront.net, seeded with the
+small catalog (about 5k articles).
 
 ![Catalog listing: dresses on sale, with category navigation and filters](docs/images/catalog.png)
 
-## Quick start (local)
+## Quick start
 
-Needs git and make (on macOS: `xcode-select --install`), Docker with Compose 2.1 or newer,
-Node 22 or 24, and pnpm 10. With Node 22 or 24, `corepack enable` installs the pinned pnpm;
-Node 25 no longer ships corepack, so use `npm install -g pnpm@10` there. Ports 5432, 6379
-and 8080 must be free. `make doctor` checks all of this.
+Needs Docker, Node 22 or 24 with pnpm 10, git and make; `make doctor` checks them.
 
 ```sh
 cd app && pnpm install && cd ..
-make local                    # postgres, valkey, migrate, read-api, write-api, web, gateway
-make seed-local               # full catalog: 303k articles, 1.7M sizes, about a minute
-make seed-local SCALE=small   # or about 5k articles in seconds
+make local                    # the whole stack on http://localhost:8080
+make seed-local SCALE=small   # about 5k articles; omit SCALE for the full 303k
+make test
 ```
 
-Open http://localhost:8080 for the shop and http://localhost:8080/v1/graphiql for GraphiQL.
-
-```sh
-# A listing: sale dresses between €30 and €80, cheapest first
-curl -sG localhost:8080/v1/graphql --data-urlencode 'query={
-  articles(filter: {category: "women-clothing-dresses", onSale: true, minPriceCents: 3000, maxPriceCents: 8000},
-           sort: price_asc, first: 3) {
-    nodes { sku productName price { currentCents originalCents discountPct } availableSizes }
-    pageInfo { endCursor hasNextPage }
-    totalCount { value isCapped }
-  }
-}'
-
-# A write (token from app/.env.example): put an article on sale
-curl -s -X PATCH localhost:8080/v1/articles/<SKU> \
-  -H 'authorization: Bearer local-dev-token' -H 'content-type: application/json' \
-  -d '{"priceCents": 2999, "originalPriceCents": 4999}'
-```
-
-`make test` runs the unit and integration tests against the compose Postgres and Valkey;
-`make lint` runs ESLint, Prettier and the type checker.
-
-## Deploy to AWS
-
-Prerequisites, on top of the local ones: AWS CLI v2, Terraform 1.11 or newer, Docker
-buildx, jq, zip and curl (`make doctor` lists them). The Makefile uses the AWS CLI profile
-`celestiea`; pass `AWS_PROFILE=<yours>` to use another. The account needs a Lambda
-concurrency quota above 10 for prod (new accounts start at 10).
-
-```sh
-make bootstrap                                   # once: state bucket and ECR repositories
-make deploy ENV=dev ALERT_EMAIL=you@example.com  # build, push, apply, migrate, publish UI, smoke test
-make seed ENV=dev                                # generate locally, upload to S3, import inside the VPC
-```
-
-Write routes need the admin token, which Terraform generates and never stores in state:
-
-```sh
-aws secretsmanager get-secret-value --query SecretString --output text \
-  --secret-id "$(terraform -chdir=infra/terraform/envs/dev output -raw admin_token_secret_arn)"
-```
-
-**Tear down with `make destroy ENV=dev`.** Dev is sized for the free tier (about $1.30 a
-month on the legacy free tier, about $55 without it); prod is about $365 a month at idle
-([cost](docs/cost.md)). In dev a $100 budget triggers a kill switch that stops the
-environment; `make resume ENV=dev` brings it back.
-
-CI (`.github/workflows/ci.yml`) needs no AWS access: it lints, type-checks, tests and
-builds the app and images, and runs Terraform fmt, tflint, validate and the module tests.
-Deploys run from a laptop with `make deploy`. Deploying from CI would need a GitHub OIDC
-provider and role in the account; this account's organization policy denies creating
-OIDC providers, so that part was removed rather than replaced with long-lived keys.
+More commands and example requests: [local development](docs/local-development.md).
+Deploying to AWS: [deployment](docs/deployment.md).
 
 ## Architecture
 
@@ -91,85 +39,27 @@ flowchart LR
     W --> V
 ```
 
-A read is a cacheable `GET /v1/graphql` that CloudFront serves from the edge for 30 to 60
-seconds; on a miss it goes through API Gateway and the VPC link to the read API, which
-reads Valkey (product detail) and the Aurora reader. A write is a REST call through the
-authorizer to the Lambda, which commits on the writer through RDS Proxy, overwrites the
-product in Valkey and returns the updated product. Sequence diagrams for both, the local
-stack and the network rules are in [docs/architecture.md](docs/architecture.md).
+Reads are cacheable `GET /v1/graphql` requests that CloudFront serves from the edge for 30
+to 60 seconds; misses go through API Gateway to the read API on ECS, the Aurora reader and
+Valkey. Writes are REST calls through an authorizer to one Lambda, which commits on the
+writer through RDS Proxy and returns the updated product. The free-tier dev environment
+keeps this shape on smaller pieces (one RDS instance, one EC2 host, no Valkey).
 
-The free-tier dev environment keeps this shape but uses one RDS instance (no reader, no
-proxy), one t3.micro ECS host and no Valkey ([ADR 0007](docs/adr/0007-terraform-and-repo-separation.md)).
+The model: a **product** (style) has colour **articles**, the unit shoppers see as tiles,
+and each article has **sizes**, the purchasable SKUs. Listings are served by partial
+indexes on articles with keyset pagination, about 1 ms per query on 303k articles.
 
-## Data model
+## Documentation
 
-```mermaid
-erDiagram
-    brands ||--o{ products : makes
-    categories ||--o{ categories : "parent of"
-    categories ||--o{ products : "leaf category of"
-    size_charts ||--o{ products : "sizes from"
-    products ||--|{ articles : "comes in colours"
-    articles ||--|{ article_sizes : "sold in sizes"
-    articles ||--o{ article_images : shows
-    products {
-        bigint id
-        text model_sku
-        jsonb attributes
-        publication_status status
-        int version
-    }
-    articles {
-        bigint id
-        text article_sku
-        color_family color_family
-        int price_cents
-        int original_price_cents
-        smallint discount_pct
-        bigint brand_id "copied from product"
-        bigint category_id "copied from product"
-        publication_status product_status "copied from product"
-    }
-    article_sizes {
-        text size_label
-        smallint size_sort
-        char gtin
-        size_availability availability
-    }
-```
-
-A **product** is a style ("Relaxed fit denim jacket"). Each **article** is one colour of it,
-with its own price, sale and images. Articles are the unit a shopper sees as a tile, so
-filtering, sorting and pricing all happen on them. **Sizes** are the purchasable SKUs,
-ordered by the size chart (S < M < L), each with a GTIN and availability. Product fields that listings
-filter on are copied onto articles in the same transaction, so one index on `articles`
-serves each listing ([ADR 0003](docs/adr/0003-product-article-size-model.md)).
-
-Categories are an `ltree` tree (`women.clothing.dresses.maxi`); a parent category filter
-expands to its leaves. Prices are integer cents. Attributes are JSONB and deliberately not
-indexed.
-
-### Indexes
-
-All listing indexes on `articles` are partial on "not deleted, article active, product
-active", so they contain only rows a shopper can see.
-
-| Index                                                                                  | Serves                                                                 |
-| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `(category_id, popularity_score DESC, id DESC)`                                        | default listing of a leaf category                                     |
-| `(category_id, price_cents, id)`                                                       | category + price range, price sorts (scanned backwards for descending) |
-| `(category_id, released_at DESC, id DESC)`                                             | "new in" within a category                                             |
-| `(popularity_score DESC, id DESC)`, `(price_cents, id)`, `(released_at DESC, id DESC)` | listings without a category, and parent categories                     |
-| `(discount_pct DESC, id DESC) WHERE is_on_sale`                                        | "biggest discount"                                                     |
-| `(brand_id, category_id)`                                                              | brand filters                                                          |
-| `(product_id)`, `UNIQUE (article_sku)`                                                 | product detail, SKU lookup                                             |
-| `article_sizes (article_id, size_label)` unique                                        | sizes of an article                                                    |
-| `article_sizes (size_label, article_id) WHERE availability <> 'out_of_stock'`          | size filter                                                            |
-| `categories USING gist (path)`                                                         | descendant lookup                                                      |
-
-Every sort index ends in `id` in the same direction, so the keyset condition
-`(sort_key, id) > (…)` is one index range. Real plans for each listing, all around 1 ms on
-the full seed: [docs/query-plans.md](docs/query-plans.md).
+| Topic                                                   | Where                                                                    |
+| ------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Request flows, local stack, network and security groups | [architecture](docs/architecture.md)                                     |
+| Tables, why product → article → size, every index       | [data model](docs/data-model.md)                                         |
+| `EXPLAIN ANALYZE` for each listing query                | [query plans](docs/query-plans.md)                                       |
+| Load tests (local and AWS) and the capacity estimate    | [benchmarks](docs/benchmarks.md)                                         |
+| Monthly cost of dev and prod, cost drivers              | [cost](docs/cost.md)                                                     |
+| What changes with more traffic, search, regions         | [scaling path](docs/scaling.md)                                          |
+| API contracts, generated with `pnpm docs:api`           | [schema.graphql](docs/schema.graphql), [openapi.yaml](docs/openapi.yaml) |
 
 ## Key decisions
 
@@ -183,66 +73,22 @@ the full seed: [docs/query-plans.md](docs/query-plans.md).
 - [0008 GraphQL reads, REST writes](docs/adr/0008-graphql-reads-rest-writes.md): cacheable GET queries; HTTP semantics for writes; one problem shape.
 - [0009 Cross-region plan](docs/adr/0009-cross-region.md): Aurora Global Database, per-region read APIs, a single write region.
 
-API contracts: [docs/schema.graphql](docs/schema.graphql) (reads) and
-[docs/openapi.yaml](docs/openapi.yaml) (writes), both generated with `pnpm docs:api`.
-
-## Scaling path (described, not built)
-
-1. More Aurora readers and more read tasks; the read API is stateless apart from a
-   5-minute memo of reference data.
-2. Longer CloudFront lifetimes with `stale-while-revalidate` and origin shield; trusted
-   documents (persisted queries) so only known GraphQL queries run.
-3. When attribute filters, facet counts on any filter combination, full-text search, typo
-   tolerance or personalization are needed: project articles into **OpenSearch or
-   Typesense** through a **transactional outbox → EventBridge or SQS → indexer Lambda** (or
-   CDC from the WAL). Postgres stays the source of truth and keeps serving product detail
-   and writes.
-4. International traffic: Aurora Global Database with read APIs per region
-   ([ADR 0009](docs/adr/0009-cross-region.md)).
-5. Partitioning `articles` and `article_sizes` only at orders of magnitude more data; at
-   300k articles every listing is an index range.
-
-## Benchmarks
-
-Local compose stack, full seed, k6 on the same 2017 laptop ([details](docs/benchmarks.md)):
-
-| Scenario                    | p50     | p95      |
-| --------------------------- | ------- | -------- |
-| Filtered listing            | 31.7 ms | 63.6 ms  |
-| 20 consecutive cursor pages | 16.4 ms | 29.1 ms  |
-| Product detail, Valkey miss | 34.8 ms | 104.6 ms |
-| Product detail, Valkey hit  | 10.2 ms | 29.3 ms  |
-| Price update (write)        | 25.1 ms | 59.4 ms  |
-
-The database part of a listing is about 1 ms; most of the rest is the laptop running
-Docker, the gateway and the load generator together.
-
-On the deployed dev environment (free-tier sized, small seed) the same script ran at
-596 rps with 95% of reads served by CloudFront at about 9 ms p50; the 2,212 cache misses
-took 29 ms p50 and 126 ms p95 at the origin, and bursts above the dev throttle got 429
-([details](docs/benchmarks.md#dev-on-aws)).
-
-## Known limitations and next steps
+## Known limitations
 
 - **Auth**: one shared bearer token for writes. Next: Cognito or OIDC with an API Gateway
   JWT authorizer, and per-user audit fields.
-- **Only dev is deployed.** Prod has passed `validate`, `tflint` and plan-time tests but
-  has never been applied, and needs a Lambda concurrency quota increase first (new
-  accounts get 10 in total).
-- **Single currency and locale**: EUR only, English content. Per-country prices and
-  translated content would need price lists and content tables keyed by market.
-- **No inventory** beyond size availability flags; no reservations, carts or checkout.
-- **No search engine**, so no attribute facets, relevance ranking or typo tolerance
-  ([scaling path](#scaling-path-described-not-built)).
-- **No audit log** of catalog changes, and no outbox yet (needed for search and
-  cross-region cache updates).
-- **Deploys**: ECS rolling updates with a circuit breaker; no blue/green, and dev has a
-  short gap per deploy. The prod deploy role has administrator rights and should be
-  narrowed to the services used.
-- **UI** has no component tests; behaviour is tested at the API level. The size filter
-  picks size systems from the category path.
-- **Not tested**: the Terraform against real AWS, the kill switch end to end, and the S3
-  seed import (`aws_s3` exists only on RDS/Aurora, not in the local Postgres).
+- **Only dev is deployed.** Prod has passed `validate`, `tflint` and plan-time tests but has
+  never been applied; it needs a Lambda concurrency quota increase first.
+- **Deploys run from a laptop.** The account's organization policy denies the GitHub OIDC
+  provider that CI deploys would need; CI runs checks only.
+- **Single currency and locale**: EUR only, English content.
+- **No inventory** beyond size availability flags; no carts or checkout.
+- **No search engine**, so no attribute facets, relevance ranking or typo tolerance, and no
+  outbox or audit log yet ([scaling path](docs/scaling.md)).
+- **Deploys** are ECS rolling updates with a circuit breaker, not blue/green; dev has a
+  short gap per deploy.
+- **UI** has no component tests; behaviour is tested at the API level.
+- **Not tested end to end**: the kill switch, and anything in prod.
 
 ## AI usage
 
