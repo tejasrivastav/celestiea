@@ -3,7 +3,8 @@ mock_provider "aws" {
     defaults = { json = "{}" }
   }
 }
-mock_provider "random" {}
+# The real random provider runs locally without credentials. Mocking it would fail: older
+# Terraform versions cannot mock ephemeral resources such as random_password.
 
 variables {
   name              = "test"
