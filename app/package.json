@@ -34,5 +34,10 @@
     "typescript-eslint": "^8.73.0",
     "vitest": "^3.2.7",
     "yaml": "^2.9.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

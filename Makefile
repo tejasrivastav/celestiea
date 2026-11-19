@@ -2,7 +2,11 @@ APP := app
 COMPOSE := docker compose --project-directory $(APP)
 LOCAL_DATABASE_URL := postgres://celestiea:celestiea@localhost:5432/celestiea
 
-.PHONY: local local-down seed-local test lint
+.PHONY: doctor local local-down seed-local test lint
+
+## Check that the tools the README needs are installed
+doctor:
+	@scripts/doctor.sh
 
 ## Start the full local stack on http://localhost:8080
 local:

@@ -1,6 +1,6 @@
 # Benchmarks
 
-Recorded with k6 (`app/bench/catalog.k6.js`) against the local compose stack: Caddy
+Recorded with [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) (`app/bench/catalog.k6.js`) against the local compose stack: Caddy
 gateway, read API with Valkey, write API local adapter, Postgres 16 with the full seed.
 Docker Desktop with 4 vCPUs and 4 GB on a 2017 Intel i7 MacBook Pro, with k6 running on
 the same machine. Measured 2026-11-18.

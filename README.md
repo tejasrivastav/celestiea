@@ -11,7 +11,10 @@ fictional.
 
 ## Quick start (local)
 
-Needs Docker, Node 22+ and pnpm (`corepack enable`). Ports 5432, 6379 and 8080 must be free.
+Needs git and make (on macOS: `xcode-select --install`), Docker with Compose 2.1 or newer,
+Node 22 or 24, and pnpm 10. With Node 22 or 24, `corepack enable` installs the pinned pnpm;
+Node 25 no longer ships corepack, so use `npm install -g pnpm@10` there. Ports 5432, 6379
+and 8080 must be free. `make doctor` checks all of this.
 
 ```sh
 cd app && pnpm install && cd ..
@@ -44,7 +47,10 @@ curl -s -X PATCH localhost:8080/v1/articles/<SKU> \
 
 ## Deploy to AWS
 
-Prerequisites: AWS credentials for the account, Terraform ≥ 1.11, Docker with buildx, jq.
+Prerequisites, on top of the local ones: AWS CLI v2, Terraform 1.11 or newer, Docker
+buildx, jq, zip and curl (`make doctor` lists them). The Makefile uses the AWS CLI profile
+`celestiea`; pass `AWS_PROFILE=<yours>` to use another. The account needs a Lambda
+concurrency quota above 10 for prod (new accounts start at 10).
 
 ```sh
 make bootstrap                                   # once: state bucket and ECR repositories
