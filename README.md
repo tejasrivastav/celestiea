@@ -1,28 +1,20 @@
 # celestiea
 
-A product catalog for a fashion shop: a GraphQL read API on ECS, a REST write API on
-Lambda, PostgreSQL, and a React storefront with an admin page, all provisioned on AWS with
-Terraform. Built as a take-home assignment; brands and products are generated and
+A product catalog for a fashion shop. Brands and products are generated and
 fictional.
 
-**Live URL (dev, free-tier sized):** https://d355y0in4rw4ow.cloudfront.net, seeded with the
-small catalog (about 5k articles).
+**Live URL (dev, free-tier sized):** https://d355y0in4rw4ow.cloudfront.net
 
 ![Catalog listing: dresses on sale, with category navigation and filters](docs/images/catalog.png)
 
-## Quick start
+# Design Constraints
 
-Needs Docker, Node 22 or 24 with pnpm 10, git and make; `make doctor` checks them.
-
-```sh
-cd app && pnpm install && cd ..
-make local                    # the whole stack on http://localhost:8080
-make seed-local SCALE=small   # about 5k articles; omit SCALE for the full 303k
-make test
-```
-
-More commands and example requests: [local development](docs/local-development.md).
-Deploying to AWS: [deployment](docs/deployment.md).
+- Middle ground MVP without full open faceted search
+- 2k rps -> 5 billion queries a month
+- 1500 steady traffic, 3000 burst traffic
+- p99 < 200ms
+- 10 concurrent write lambda, so up to 200 writes per second
+- Single region DB and compute (Multi AZ)
 
 ## Architecture
 
@@ -38,6 +30,14 @@ flowchart LR
     W --> P[RDS Proxy] --> WR[(Postgres writer)]
     W --> V
 ```
+
+### Tech Choice
+
+- Type-safe code with shared objects
+- Precomputed data on the database layer, ready for the read api
+  keeps the latency low and helps if we have to scale with ranking, pricing and availability computation
+- GraphQL for consistent and expandable query structure also helps in adding the edge cache via CF
+- Eventual consistency from the product updates
 
 Reads are cacheable `GET /v1/graphql` requests that CloudFront serves from the edge for 30
 to 60 seconds; misses go through API Gateway to the read API on ECS, the Aurora reader and
@@ -55,15 +55,28 @@ indexes on articles with keyset pagination, about 1 ms per query on 303k article
 | ------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Request flows, local stack, network and security groups | [architecture](docs/architecture.md)                                     |
 | Tables, why product → article → size, every index       | [data model](docs/data-model.md)                                         |
-| `EXPLAIN ANALYZE` for each listing query                | [query plans](docs/query-plans.md)                                       |
+| What changes with more traffic, search, regions         | [scaling path](docs/scaling.md)                                          |
 | Load tests (local and AWS) and the capacity estimate    | [benchmarks](docs/benchmarks.md)                                         |
 | Monthly cost of dev and prod, cost drivers              | [cost](docs/cost.md)                                                     |
-| What changes with more traffic, search, regions         | [scaling path](docs/scaling.md)                                          |
 | API contracts, generated with `pnpm docs:api`           | [schema.graphql](docs/schema.graphql), [openapi.yaml](docs/openapi.yaml) |
+
+## Quick start
+
+Needs Docker, Node 22 or 24 with pnpm 10, git and make; `make doctor` checks them.
+
+```sh
+cd app && pnpm install && cd ..
+make local                    # the whole stack on http://localhost:8080
+make seed-local SCALE=small   # about 5k articles; omit SCALE for the full 303k
+make test
+```
+
+More commands and example requests: [local development](docs/local-development.md).
+Deploying to AWS: [deployment](docs/deployment.md).
 
 ## Key decisions
 
-- [0001 Build vs. buy](docs/adr/0001-build-vs-buy.md): in production, evaluate SaaS or an open-source engine first; this repo builds because the assignment asks.
+- [0001 Build vs. buy](docs/adr/0001-build-vs-buy.md): in production, evaluate SaaS or an open-source engine first.
 - [0002 PostgreSQL / Aurora](docs/adr/0002-postgres-aurora-as-primary-store.md): composite partial indexes fit "filter, sort, page"; JSONB for attributes; facets need a search engine.
 - [0003 Product → article → size](docs/adr/0003-product-article-size-model.md): colour article as the listing unit; fields copied from the product in the same transaction; aggregate version.
 - [0004 Read/write split](docs/adr/0004-read-write-split.md): ECS for steady reads, one Lambda for bursty writes, API Gateway routing, RDS Proxy, replica lag.
@@ -75,20 +88,31 @@ indexes on articles with keyset pagination, about 1 ms per query on 303k article
 
 ## Known limitations
 
-- **Auth**: one shared bearer token for writes. Next: Cognito or OIDC with an API Gateway
-  JWT authorizer, and per-user audit fields.
+### Technical
+
+- **Auth** is one shared bearer token for writes. Next: Cognito or OIDC with an API Gateway
+  JWT authorizer.
 - **Only dev is deployed.** Prod has passed `validate`, `tflint` and plan-time tests but has
   never been applied; it needs a Lambda concurrency quota increase first.
 - **Deploys run from a laptop.** The account's organization policy denies the GitHub OIDC
   provider that CI deploys would need; CI runs checks only.
-- **Single currency and locale**: EUR only, English content.
-- **No inventory** beyond size availability flags; no carts or checkout.
-- **No search engine**, so no attribute facets, relevance ranking or typo tolerance, and no
-  outbox or audit log yet ([scaling path](docs/scaling.md)).
 - **Deploys** are ECS rolling updates with a circuit breaker, not blue/green; dev has a
   short gap per deploy.
+- **No outbox or audit log** yet, which search indexing and cross-region cache updates
+  would need ([scaling path](docs/scaling.md)).
 - **UI** has no component tests; behaviour is tested at the API level.
-- **Not tested end to end**: the kill switch, and anything in prod.
+
+### Shopper and admin experience
+
+- **No search**: no free-text search, attribute facets, relevance ranking or typo
+  tolerance; shoppers browse by category and filters.
+- **No buying**: inventory is only per-size availability; no bag, checkout or orders.
+- **Single market**: EUR prices and English content only.
+- **Changes show up with a delay**: a price change can take up to 60 seconds to reach
+  shoppers through CloudFront, and new brands or categories up to an hour in a browser
+  that already has them cached.
+- **Admin is one shared login**: no per-user accounts, roles or change history.
+- **Placeholder images**: generated silhouettes per colour, no product photography.
 
 ## AI usage
 
