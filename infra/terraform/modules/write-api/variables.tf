@@ -39,7 +39,7 @@ variable "valkey_url" {
 }
 
 variable "write_concurrency" {
-  description = "Reserved concurrency of the write function."
+  description = "Reserved concurrency of the write function; -1 reserves none."
   type        = number
   default     = 10
 }

@@ -92,9 +92,11 @@ module "write_api" {
   database_iam_resource_id = module.database.write_iam_resource_id
   database_name            = module.database.database_name
   valkey_url               = ""
-  # Without RDS Proxy each instance holds its own connections; a db.t4g.micro allows
-  # about 80, so writers are capped well below that.
-  write_concurrency = 5
+  # Without RDS Proxy each Lambda instance holds its own connections. New accounts have a
+  # total Lambda concurrency of 10 and AWS keeps all 10 unreserved, so no reservation is
+  # possible; that account limit already caps writers far below db.t4g.micro's ~80
+  # connections. Request a quota increase before relying on more.
+  write_concurrency = -1
 }
 
 module "api_gateway" {
