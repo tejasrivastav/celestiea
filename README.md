@@ -5,7 +5,7 @@ Lambda, PostgreSQL, and a React storefront with an admin page, all provisioned o
 Terraform. Built as a take-home assignment; brands and products are generated and
 fictional.
 
-**Live URL:** _not deployed yet (filled in after the first `make deploy ENV=dev`)_
+**Live URL (dev, free-tier sized):** https://d355y0in4rw4ow.cloudfront.net, seeded with the small catalog (about 5k articles)
 
 ![Catalog listing: dresses on sale, with category navigation and filters](docs/images/catalog.png)
 
@@ -215,8 +215,9 @@ Docker, the gateway and the load generator together. No AWS numbers yet.
 
 - **Auth**: one shared bearer token for writes. Next: Cognito or OIDC with an API Gateway
   JWT authorizer, and per-user audit fields.
-- **Not deployed yet**, so the AWS configuration has passed `validate`, `tflint` and
-  plan-time tests but has never been applied. Expect fixes on the first apply.
+- **Only dev is deployed.** Prod has passed `validate`, `tflint` and plan-time tests but
+  has never been applied, and needs a Lambda concurrency quota increase first (new
+  accounts get 10 in total).
 - **Single currency and locale**: EUR only, English content. Per-country prices and
   translated content would need price lists and content tables keyed by market.
 - **No inventory** beyond size availability flags; no reservations, carts or checkout.

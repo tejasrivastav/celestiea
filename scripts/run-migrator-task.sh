@@ -9,7 +9,8 @@ tf_output() { terraform -chdir="infra/terraform/envs/${ENV:?set ENV to dev or pr
 cluster=$(tf_output ecs_cluster | jq -r .)
 task_definition=$(tf_output migrator_task_definition | jq -r .)
 launch=$(tf_output migrator_launch)
-command=$(jq -cn --args '["dist/main.mjs"] + $ARGS.positional' "$@")
+# Arguments go through stdin, so flags like --bucket are never read as jq options.
+command=$(printf '%s\n' "$@" | jq -R . | jq -sc '["dist/main.mjs"] + .')
 
 network_args=()
 # Fargate tasks get their own network interface; on the dev EC2 host they share its network.
