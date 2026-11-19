@@ -7,14 +7,14 @@ fictional.
 
 ![Catalog listing: dresses on sale, with category navigation and filters](docs/images/catalog.png)
 
-# Design Constraints
+## Design constraints
 
 - Middle ground MVP without full open faceted search
 - 2k rps -> 5 billion queries a month
-- 1500 steady traffic, 3000 burst traffic
+- API Gateway throttle in prod: 1,500 rps steady, 3,000 burst
 - p99 < 200ms
-- 10 concurrent write lambda, so up to 200 writes per second
-- Single region DB and compute (Multi AZ)
+- Writes: throttle around 100 writes/s, bursting to 200
+- Single region for database and compute; Multi-AZ in prod, single-AZ in dev
 
 ## Architecture
 
@@ -34,9 +34,10 @@ flowchart LR
 ### Tech Choice
 
 - Type-safe code with shared objects
-- Precomputed data on the database layer, ready for the read api
-  keeps the latency low and helps if we have to scale with ranking, pricing and availability computation
-- GraphQL for consistent and expandable query structure also helps in adding the edge cache via CF
+- Precomputed listing data in the database, ready for the read API. This keeps latency low
+  and leaves room for ranking, pricing and availability logic later.
+- GraphQL for a consistent, expandable query structure. Queries go over GET, so CloudFront
+  can cache them at the edge.
 - Eventual consistency from the product updates
 
 Reads are cacheable `GET /v1/graphql` requests that CloudFront serves from the edge for 30
@@ -93,7 +94,8 @@ Deploying to AWS: [deployment](docs/deployment.md).
 - **Auth** is one shared bearer token for writes. Next: Cognito or OIDC with an API Gateway
   JWT authorizer.
 - **Only dev is deployed.** Prod has passed `validate`, `tflint` and plan-time tests but has
-  never been applied; it needs a Lambda concurrency quota increase first.
+  never been applied; it needs a Lambda concurrency quota increase first. The dev kill
+  switch has not been tested end to end.
 - **Deploys run from a laptop.** The account's organization policy denies the GitHub OIDC
   provider that CI deploys would need; CI runs checks only.
 - **Deploys** are ECS rolling updates with a circuit breaker, not blue/green; dev has a
@@ -101,6 +103,8 @@ Deploying to AWS: [deployment](docs/deployment.md).
 - **No outbox or audit log** yet, which search indexing and cross-region cache updates
   would need ([scaling path](docs/scaling.md)).
 - **UI** has no component tests; behaviour is tested at the API level.
+- **Telemetry**: metrics, alarms, structured logs, SLOs or SLIs,
+  error-budget alerts, tracing or escalation policy.
 
 ### Shopper and admin experience
 
