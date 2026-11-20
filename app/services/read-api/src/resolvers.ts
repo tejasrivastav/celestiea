@@ -65,6 +65,9 @@ async function loadPublicProduct(
   if (valkey !== null) {
     try {
       const cached = await getCachedProduct(valkey, productId);
+      if (cached === 'deleted') {
+        return null;
+      }
       if (cached !== null) {
         return toPublicProductView(cached);
       }

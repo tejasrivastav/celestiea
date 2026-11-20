@@ -1,5 +1,39 @@
 # Architecture
 
+## Network (prod)
+
+```mermaid
+flowchart LR
+    U((Shoppers)) --> CF[CloudFront]
+    CF --> UI[(S3 UI bucket)]
+    CF --> AG[API Gateway HTTP API]
+    AG -- "invoke" --> AU[Authorizer Lambda]
+    AU --> SMP[Secrets Manager]
+
+    subgraph VPC["VPC 10.40.0.0/16: private subnets in 2 AZs, no internet gateway, no NAT"]
+        VL[VPC link] -- "80" --> ALB[Internal ALB]
+        ALB -- "3000" --> R[Read API tasks]
+        R -- "5432" --> DB[(Aurora writer + reader)]
+        MG[Migrator task] -- "5432" --> DB
+        W[Write Lambda] -- "5432, IAM auth" --> P[RDS Proxy]
+        P -- "5432" --> DB
+        R -- "6379" --> V[(Valkey)]
+        W -- "6379" --> V
+        subgraph EP["VPC endpoints"]
+            ECR[ECR api + dkr]
+            LOGS[CloudWatch Logs]
+            SM[Secrets Manager]
+            S3GW[S3 gateway]
+        end
+        R -. "443" .-> EP
+        MG -. "443" .-> EP
+    end
+
+    AG -- "GET/POST /v1/graphql" --> VL
+    AG -- "other /v1 routes, invoke" --> W
+    S3GW --> LAYERS[(Container image layers, ECR storage in S3)]
+```
+
 ## Components
 
 | Component                          | Runs on                                   | Code                                       | Talks to                                       |
@@ -11,6 +45,30 @@
 | Migrator (seed import in dev only) | One-off ECS task                          | `app/services/migrator`                    | Postgres writer, S3 via `aws_s3` (dev)         |
 | Kill switch (dev)                  | Lambda                                    | `app/services/kill-switch`                 | API Gateway, Lambda, ECS, Auto Scaling, RDS    |
 | Shared code                        |                                           | `app/packages/domain`, `app/packages/db`   |                                                |
+
+## Caching
+
+**Most reads never reach the backend.** CloudFront serves cacheable GraphQL GETs at the
+edge, so the read API and database are sized for cache misses, not for the full 2k rps.
+
+| Layer           | What it holds                      | Lifetime                                                                             | Kept fresh by                          | Dev | Prod |
+| --------------- | ---------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------- | --- | ---- |
+| Browser         | GraphQL GET responses              | `max-age` per root field                                                             | ETag revalidation (304)                | yes | yes  |
+| CloudFront      | GraphQL GET responses, UI assets   | listings 30 s, products 60 s, plus 10 s `stale-while-revalidate` | expiry only, no invalidation per write | yes | yes  |
+| Read API memory | Categories, brands, size charts    | 5 min per task                                                                       | expiry                                 | yes | yes  |
+| Valkey          | Product views by id (not listings) | 5 min                                                                                | write-through; tombstone on delete     | no  | yes  |
+| Postgres reader | Source for every miss              |                                                                                      |                                        |     |      |
+
+Measured and estimated:
+
+- **CloudFront, measured:** 95.2% of 56,824 requests in the dev load test never reached
+  the origin ([benchmarks](benchmarks.md#dev-on-aws)). One client location and a small
+  product pool flatter this; capacity planning assumes 80%.
+- **Valkey, estimated:** a hit costs 0.1 ms of database CPU instead of 3.5 ms, which is
+  about 20% of database load at a 70% hit rate, because listings dominate and are not in
+  Valkey. Not deployed in dev, so not yet measured in AWS.
+- Why each layer exists and how writes interact with it:
+  [ADR 0006](adr/0006-caching-strategy.md).
 
 ## Read request
 
@@ -78,52 +136,3 @@ flowchart LR
     W --> PG
     W --> V
 ```
-
-## Network (prod)
-
-```mermaid
-flowchart LR
-    U((Shoppers)) --> CF[CloudFront]
-    CF --> UI[(S3 UI bucket)]
-    CF --> AG[API Gateway HTTP API]
-    AG -- "invoke" --> AU[Authorizer Lambda]
-    AU --> SMP[Secrets Manager]
-
-    subgraph VPC["VPC 10.40.0.0/16: private subnets in 2 AZs, no internet gateway, no NAT"]
-        VL[VPC link] -- "80" --> ALB[Internal ALB]
-        ALB -- "3000" --> R[Read API tasks]
-        R -- "5432" --> DB[(Aurora writer + reader)]
-        MG[Migrator task] -- "5432" --> DB
-        W[Write Lambda] -- "5432, IAM auth" --> P[RDS Proxy]
-        P -- "5432" --> DB
-        R -- "6379" --> V[(Valkey)]
-        W -- "6379" --> V
-        subgraph EP["VPC endpoints"]
-            ECR[ECR api + dkr]
-            LOGS[CloudWatch Logs]
-            SM[Secrets Manager]
-            S3GW[S3 gateway]
-        end
-        R -. "443" .-> EP
-        MG -. "443" .-> EP
-    end
-
-    AG -- "GET/POST /v1/graphql" --> VL
-    AG -- "other /v1 routes, invoke" --> W
-    S3GW --> LAYERS[(Container image layers, ECR storage in S3)]
-```
-
-Two AZs, private subnets only, no internet gateway or NAT. ECR, CloudWatch Logs and
-Secrets Manager are reached through interface endpoints, S3 through a gateway endpoint.
-The ALB is internal and reachable only from the API Gateway VPC link. Security group rules
-(one table in `infra/terraform/modules/network/main.tf`):
-
-| From                   | To                                 | Port |
-| ---------------------- | ---------------------------------- | ---- |
-| VPC link               | ALB                                | 80   |
-| ALB                    | read API                           | 3000 |
-| read API, migrator     | database                           | 5432 |
-| write Lambda           | RDS Proxy (prod) or database (dev) | 5432 |
-| RDS Proxy              | database                           | 5432 |
-| read API, write Lambda | Valkey                             | 6379 |
-| VPC                    | interface endpoints                | 443  |

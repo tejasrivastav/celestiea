@@ -3,6 +3,10 @@ import { Kind, OperationTypeNode, type DocumentNode } from 'graphql';
 // CloudFront and browsers cache GET queries for the shortest lifetime of any root field
 // requested. Writes never invalidate CloudFront, so these values are the accepted
 // staleness window (docs/adr/0006-caching-strategy.md).
+// After expiry CloudFront may serve the old response this long while it refetches, so
+// hot keys don't send a burst of misses to the origin. It adds to the staleness window.
+const staleWhileRevalidateSeconds = 10;
+
 const maxAgeByRootField: Record<string, number> = {
   articles: 30,
   product: 60,
@@ -36,5 +40,5 @@ export function cacheControlFor(document: DocumentNode): string {
     return 'no-store';
   }
   const maxAge = Math.min(...maxAges);
-  return `public, max-age=${maxAge}, stale-while-revalidate=${maxAge}`;
+  return `public, max-age=${maxAge}, stale-while-revalidate=${staleWhileRevalidateSeconds}`;
 }

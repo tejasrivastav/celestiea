@@ -8,8 +8,11 @@ below creates, changes or deletes billable resources.
 On top of the [local prerequisites](local-development.md#prerequisites): AWS CLI v2,
 Terraform 1.11 or newer, Docker buildx, jq, zip and curl. `make doctor` lists them.
 
-- The Makefile uses the AWS CLI profile `celestiea`. Pass `AWS_PROFILE=<yours>` to use
-  another.
+- Sign in with `aws login --profile celestiea`. The Makefile uses that profile by default;
+  pass `AWS_PROFILE=<yours>` to use another.
+- Commands run outside `make` (like the admin token below) need the profile in your shell:
+  `export AWS_PROFILE=celestiea`. Without it the AWS CLI and Terraform fall back to the
+  default profile, and Terraform fails with `InvalidClientTokenId`.
 - New AWS accounts can run only 10 Lambda functions at once in total. Dev reserves none,
   but prod reserves 20 for the write API, so request a higher "Concurrent executions" quota
   in Service Quotas before deploying prod.
@@ -38,9 +41,16 @@ Write routes need a bearer token. Terraform generates it as a write-only value, 
 never stored in state. Read it from Secrets Manager:
 
 ```sh
+export AWS_PROFILE=celestiea
 aws secretsmanager get-secret-value --query SecretString --output text \
-  --secret-id "$(terraform -chdir=infra/terraform/envs/dev output -raw admin_token_secret_arn)"
+  --secret-id celestiea-dev/admin-token
 ```
+
+The secret is named `celestiea-<env>/admin-token`;
+`terraform -chdir=infra/terraform/envs/dev output -raw admin_token_secret_arn` prints its
+ARN. If the AWS CLI says `--secret-id` has length 0, the Terraform call inside `$(…)`
+failed, usually because `AWS_PROFILE` isn't set. The command prints the token, so keep it
+out of recordings and screenshots.
 
 Enter it on `/admin` or send it as `Authorization: Bearer <token>`.
 

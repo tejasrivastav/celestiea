@@ -1,7 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest';
-import { createPool, createValkeyClient, listArticles } from '@celestiea/db';
-import { parseArticleListQuery } from '@celestiea/domain';
+import {
+  createPool,
+  createValkeyClient,
+  fillProductCache,
+  getCachedProduct,
+  listArticles,
+} from '@celestiea/db';
+import { parseArticleListQuery, type ProductView } from '@celestiea/domain';
 import { createBrand, createCategory, createSizeChart, resetCatalog } from '../../../test/builders';
 import { buildApp } from '../../read-api/src/app';
 import { buildLocalServer } from './local-server';
@@ -289,7 +295,17 @@ describe('write API', () => {
     );
   });
 
-  it('evicts a deleted product from Valkey so reads stop serving it', async () => {
+  it('keeps a lagging-replica read from caching a deleted product again', async () => {
+    const product = await createProduct();
+    await send('DELETE', `/v1/products/${product.id}`);
+    // What a read API fill would write after reading the pre-delete row from a replica.
+    const staleView = { id: product.id, name: 'Stale', status: 'active', articles: [] };
+    await fillProductCache(valkey, staleView as unknown as ProductView);
+
+    expect(await getCachedProduct(valkey, product.id)).toBe('deleted');
+  });
+
+  it('stops serving a deleted product from Valkey', async () => {
     const product = await createProduct();
     const query = `query ($id: ID!) { product(id: $id) { name } }`;
     const readProduct = () =>

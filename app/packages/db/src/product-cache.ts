@@ -13,17 +13,23 @@ export function createValkeyClient(url: string): Redis {
 
 // The write API overwrites entries after each commit; the read API only fills gaps
 // (SET NX). A read that raced a write and saw a lagging replica therefore cannot replace
-// the writer's fresh copy. The TTL bounds the damage if a writer's SET is ever lost.
+// the writer's fresh copy. Deletes write a tombstone rather than DEL for the same reason.
+// The TTL bounds the damage if a writer's SET is ever lost.
 const ttlSeconds = 300;
 // Bump the version when ProductView changes shape, so old entries are ignored after deploys.
 const productKey = (productId: number) => `product:v1:${productId}`;
+const tombstone = 'deleted';
 
+// 'deleted' means the product is known to be gone; null means nothing is cached.
 export async function getCachedProduct(
   valkey: Redis,
   productId: number,
-): Promise<ProductView | null> {
+): Promise<ProductView | 'deleted' | null> {
   const cached = await valkey.get(productKey(productId));
-  return cached === null ? null : (JSON.parse(cached) as ProductView);
+  if (cached === null || cached === tombstone) {
+    return cached;
+  }
+  return JSON.parse(cached) as ProductView;
 }
 
 export async function fillProductCache(valkey: Redis, view: ProductView): Promise<void> {
@@ -34,6 +40,6 @@ export async function writeThroughProduct(valkey: Redis, view: ProductView): Pro
   await valkey.set(productKey(view.id), JSON.stringify(view), 'EX', ttlSeconds);
 }
 
-export async function evictProduct(valkey: Redis, productId: number): Promise<void> {
-  await valkey.del(productKey(productId));
+export async function markProductDeleted(valkey: Redis, productId: number): Promise<void> {
+  await valkey.set(productKey(productId), tombstone, 'EX', ttlSeconds);
 }

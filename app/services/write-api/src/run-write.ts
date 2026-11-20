@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import type pg from 'pg';
 import { DomainError, type ProductView } from '@celestiea/domain';
 import {
-  evictProduct,
+  markProductDeleted,
   findProductView,
   findStoredResponse,
   storeResponse,
@@ -88,7 +88,7 @@ async function refreshCache(context: WriteContext, outcome: WriteOutcome): Promi
   }
   try {
     if (outcome.status === 204) {
-      await evictProduct(context.valkey, outcome.deletedProductId);
+      await markProductDeleted(context.valkey, outcome.deletedProductId);
     } else {
       await writeThroughProduct(context.valkey, outcome.view);
     }

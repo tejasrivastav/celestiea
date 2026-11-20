@@ -8,8 +8,8 @@ must not take the shop down, a second region is needed.
 ## Plan
 
 1. **Reads go global first.** CloudFront already serves the UI and cached GraphQL from edge
-   locations worldwide. The first step needs no new region at all: longer `stale-while-
-revalidate` and origin shield cut the trips back to Stockholm.
+   locations worldwide. The first step needs no new region at all: longer cache lifetimes
+   and origin shield cut the trips back to Stockholm.
 2. **Aurora Global Database**: a secondary cluster in the second region (for example
    us-east-1) with storage-level replication, typically under one second of lag. The
    secondary's reader serves that region's read API.

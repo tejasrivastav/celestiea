@@ -50,6 +50,12 @@ The model: a **product** (style) has colour **articles**, the unit shoppers see 
 and each article has **sizes**, the purchasable SKUs. Listings are served by partial
 indexes on articles with keyset pagination, about 1 ms per query on 303k articles.
 
+> **Most reads never reach the backend.** CloudFront serves cacheable GraphQL GETs at the
+> edge: in the dev load test it answered 95% of 57k requests, so the read API and database
+> are sized for cache misses (about 20% of the 2k rps target), not for the full load.
+> Valkey runs in prod only; dev goes straight to Postgres. See
+> [caching](docs/architecture.md#caching).
+
 ## Documentation
 
 | Topic                                                   | Where                                                                    |
@@ -83,7 +89,7 @@ Deploying to AWS: [deployment](docs/deployment.md).
 - [0003 Product → article → size](docs/adr/0003-product-article-size-model.md): colour article as the listing unit; fields copied from the product in the same transaction; aggregate version.
 - [0004 Read/write split](docs/adr/0004-read-write-split.md): ECS for steady reads, one Lambda for bursty writes, API Gateway routing, RDS Proxy, replica lag.
 - [0005 Keyset pagination](docs/adr/0005-keyset-pagination.md): stable under concurrent writes; page 41 costs 1 ms, `OFFSET` 18 to 141 ms.
-- [0006 Caching](docs/adr/0006-caching-strategy.md): CloudFront for 30 to 60 s with no invalidation per write, Valkey with write-through, reference data in memory.
+- [0006 Caching](docs/adr/0006-caching-strategy.md): CloudFront for 30 to 60 s plus 10 s stale, with no invalidation per write, Valkey with write-through, reference data in memory.
 - [0007 Terraform and environments](docs/adr/0007-terraform-and-repo-separation.md): app and infra separated, write-only secrets, prod vs. free-tier dev.
 - [0008 GraphQL reads, REST writes](docs/adr/0008-graphql-reads-rest-writes.md): cacheable GET queries; HTTP semantics for writes; one problem shape.
 - [0009 Cross-region plan](docs/adr/0009-cross-region.md): Aurora Global Database, per-region read APIs, a single write region.
@@ -113,9 +119,10 @@ Deploying to AWS: [deployment](docs/deployment.md).
   tolerance; shoppers browse by category and filters.
 - **No buying**: inventory is only per-size availability; no bag, checkout or orders.
 - **Single market**: EUR prices and English content only.
-- **Changes show up with a delay**: a price change can take up to 60 seconds to reach
-  shoppers through CloudFront, and new brands or categories up to an hour in a browser
-  that already has them cached.
+- **Changes show up with a delay**: a price change can take up to 70 seconds to reach
+  shoppers (60 s cache lifetime plus 10 s `stale-while-revalidate` at CloudFront), and
+  new brands or categories up to an hour in a browser that already has them
+  cached.
 - **Admin is one shared login**: no per-user accounts, roles or change history.
 - **Placeholder images**: generated silhouettes per colour, no product photography.
 

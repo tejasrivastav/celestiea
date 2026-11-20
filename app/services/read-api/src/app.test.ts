@@ -63,7 +63,7 @@ describe('read API', () => {
     );
 
     expect(response.statusCode).toBe(200);
-    expect(response.headers['cache-control']).toBe('public, max-age=30, stale-while-revalidate=30');
+    expect(response.headers['cache-control']).toBe('public, max-age=30, stale-while-revalidate=10');
     expect(response.json().data.articles.nodes).toHaveLength(1);
   });
 

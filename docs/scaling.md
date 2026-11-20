@@ -5,7 +5,7 @@ second are in the [capacity estimate](benchmarks.md#capacity-estimate).
 
 1. More Aurora readers and more read tasks; the read API is stateless apart from a
    5-minute memo of reference data.
-2. Longer CloudFront lifetimes with `stale-while-revalidate` and origin shield; trusted
+2. Longer CloudFront lifetimes (`stale-while-revalidate` is already on) and origin shield; trusted
    documents (persisted queries) so only known GraphQL queries run.
 3. When attribute filters, facet counts on any filter combination, full-text search, typo
    tolerance or personalization are needed: project articles into **OpenSearch or
