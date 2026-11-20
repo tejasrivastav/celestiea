@@ -13,9 +13,9 @@
     "test": "vitest run",
     "seed": "tsx packages/seed/src/cli.ts",
     "migrate": "tsx services/migrator/src/main.ts",
-    "explain": "tsx bench/explain.ts",
-    "bench": "k6 run bench/catalog.k6.js",
-    "docs:api": "tsx scripts/api-docs.ts"
+    "explain": "tsx tooling/bench/explain.ts",
+    "bench": "k6 run tooling/bench/catalog.k6.js",
+    "docs:api": "tsx tooling/scripts/api-docs.ts"
   },
   "devDependencies": {
     "@celestiea/db": "workspace:*",

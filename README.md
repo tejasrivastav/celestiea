@@ -54,6 +54,7 @@ indexes on articles with keyset pagination, about 1 ms per query on 303k article
 
 | Topic                                                   | Where                                                                    |
 | ------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Reviewing? Reading order for the code**               | [code tour](docs/code-tour.md)                                           |
 | Request flows, local stack, network and security groups | [architecture](docs/architecture.md)                                     |
 | Tables, why product → article → size, every index       | [data model](docs/data-model.md)                                         |
 | What changes with more traffic, search, regions         | [scaling path](docs/scaling.md)                                          |

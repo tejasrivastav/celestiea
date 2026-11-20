@@ -9,9 +9,9 @@ import {
   ProductPatchInput,
   SizeAvailabilityInput,
 } from '@celestiea/domain';
-import { schema } from '../services/read-api/src/schema';
+import { schema } from '../../services/read-api/src/schema';
 
-const docs = new URL('../../docs/', import.meta.url);
+const docs = new URL('../../../docs/', import.meta.url);
 
 const problem = {
   content: { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } },

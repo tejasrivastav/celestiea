@@ -1,5 +1,5 @@
 // k6 load test for the catalog. Runs against the local gateway or the CloudFront URL:
-//   k6 run -e BASE_URL=http://localhost:8080 -e TOKEN=local-dev-token bench/catalog.k6.js
+//   k6 run -e BASE_URL=http://localhost:8080 -e TOKEN=local-dev-token tooling/bench/catalog.k6.js
 // Each scenario records its own latency trend so the summary shows p50/p95 per workload.
 import http from 'k6/http';
 import { check } from 'k6';

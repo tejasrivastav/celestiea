@@ -82,7 +82,7 @@ services:
     ports:
       - '8080:8080'
     volumes:
-      - ./gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./tooling/gateway/Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
       - read-api
       - write-api

@@ -5,14 +5,20 @@ import reactHooks from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/coverage/**', 'eslint.config.js', 'web/public/**', 'bench/*.k6.js'],
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      'eslint.config.js',
+      'web/public/**',
+      'tooling/bench/*.k6.js',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
     languageOptions: {
       parserOptions: {
-        projectService: { allowDefaultProject: ['scripts/*.mjs', 'web/scripts/*.mjs'] },
+        projectService: { allowDefaultProject: ['tooling/scripts/*.mjs', 'web/scripts/*.mjs'] },
         tsconfigRootDir: import.meta.dirname,
       },
     },

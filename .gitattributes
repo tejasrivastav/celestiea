@@ -1,0 +1,5 @@
+# Generated or vendored files: collapsed in GitHub diffs and left out of language stats.
+app/pnpm-lock.yaml linguist-generated=true
+**/.terraform.lock.hcl linguist-generated=true
+docs/openapi.yaml linguist-generated=true
+docs/schema.graphql linguist-generated=true

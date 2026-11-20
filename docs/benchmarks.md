@@ -1,12 +1,12 @@
 # Benchmarks
 
-Recorded with [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) (`app/bench/catalog.k6.js`) against the local compose stack: Caddy
+Recorded with [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) (`app/tooling/bench/catalog.k6.js`) against the local compose stack: Caddy
 gateway, read API with Valkey, write API local adapter, Postgres 16 with the full seed.
 Docker Desktop with 4 vCPUs and 4 GB on a 2017 Intel i7 MacBook Pro, with k6 running on
 the same machine. Measured 2026-11-18.
 
 ```sh
-cd app && k6 run -e BASE_URL=http://localhost:8080 -e TOKEN=local-dev-token bench/catalog.k6.js
+cd app && k6 run -e BASE_URL=http://localhost:8080 -e TOKEN=local-dev-token tooling/bench/catalog.k6.js
 ```
 
 | Scenario                                                         | Load         | Requests | p50     | p95      | p99      |
@@ -41,7 +41,7 @@ outside AWS; the nearest CloudFront edge answered a static file in 8 ms connect 
 to first byte. Same script as above without the write scenario, measured 2026-11-19:
 
 ```sh
-cd app && k6 run -e BASE_URL=https://d355y0in4rw4ow.cloudfront.net -e PRODUCT_COUNT=2000 bench/catalog.k6.js
+cd app && k6 run -e BASE_URL=https://d355y0in4rw4ow.cloudfront.net -e PRODUCT_COUNT=2000 tooling/bench/catalog.k6.js
 ```
 
 | Scenario (latency at the client) | Requests | p50     | p95     | p99     |

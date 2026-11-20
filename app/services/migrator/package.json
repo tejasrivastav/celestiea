@@ -8,6 +8,6 @@
     "pino": "^9.14.0"
   },
   "scripts": {
-    "build": "node ../../scripts/bundle.mjs dist src/main.ts"
+    "build": "node ../../tooling/scripts/bundle.mjs dist src/main.ts"
   }
 }

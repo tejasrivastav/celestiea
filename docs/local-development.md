@@ -54,7 +54,7 @@ API, everything else to the UI. The local admin token is `local-dev-token`
 - `make lint` runs ESLint, Prettier and the type checker.
 - `pnpm explain` (in `app/`) prints `EXPLAIN (ANALYZE, BUFFERS)` for the listing queries;
   see [query plans](query-plans.md).
-- `k6 run bench/catalog.k6.js` (in `app/`) runs the load test; see [benchmarks](benchmarks.md).
+- `k6 run tooling/bench/catalog.k6.js` (in `app/`) runs the load test; see [benchmarks](benchmarks.md).
 - `pnpm docs:api` regenerates [schema.graphql](schema.graphql) and [openapi.yaml](openapi.yaml).
 
 `make local-down` stops the stack and keeps the data; `docker compose --project-directory app

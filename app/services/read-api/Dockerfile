@@ -13,7 +13,7 @@ COPY services/write-api/package.json services/write-api/
 COPY services/migrator/package.json services/migrator/
 COPY services/kill-switch/package.json services/kill-switch/
 RUN pnpm install --frozen-lockfile
-COPY scripts scripts
+COPY tooling/scripts tooling/scripts
 COPY packages packages
 COPY services/read-api services/read-api
 RUN pnpm --filter @celestiea/read-api build
